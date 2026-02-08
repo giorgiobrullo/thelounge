@@ -9,7 +9,13 @@
 			<h2 class="help-version-title">
 				<span>About The Lounge</span>
 				<small>
-					v{{ store.state.serverConfiguration?.version }} (<router-link
+					<template v-if="store.state.serverConfiguration?.gitCommit">
+						<code>{{ store.state.serverConfiguration?.gitCommit }}</code>
+					</template>
+					<template v-else>
+						v{{ store.state.serverConfiguration?.version }}
+					</template>
+					(<router-link
 						id="view-changelog"
 						to="/changelog"
 						>commit info</router-link
