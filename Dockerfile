@@ -13,6 +13,8 @@ RUN git rev-parse --short HEAD > .git-commit
 RUN NODE_ENV=production bun run build:client && bun run build:server
 
 FROM node:24-alpine
+LABEL org.opencontainers.image.description="Custom build of The Lounge, a modern self-hosted web IRC client. Maintained by giorgiobrullo with up-to-date dependencies, Docker images, and cherry-picked fixes."
+LABEL org.opencontainers.image.source="https://github.com/giorgiobrullo/thelounge"
 ENV THELOUNGE_HOME="/var/opt/thelounge"
 ENV NODE_ENV=production
 EXPOSE 9000
