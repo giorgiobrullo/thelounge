@@ -8,6 +8,9 @@
 <p align="center">
   <a href="https://github.com/giorgiobrullo/thelounge/pkgs/container/thelounge"><img src="https://img.shields.io/badge/ghcr.io-Docker_Image-blue?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
   <a href="https://github.com/thelounge/thelounge"><img src="https://img.shields.io/badge/Upstream-thelounge%2Fthelounge-333a41?style=for-the-badge&logo=github&logoColor=white" alt="Upstream"></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/giorgiobrullo/thelounge/actions/workflows/docker.yml"><img src="https://img.shields.io/github/actions/workflow/status/giorgiobrullo/thelounge/docker.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=Build" alt="Build Status"></a>
   <a href="https://github.com/giorgiobrullo/thelounge/commits/master"><img src="https://img.shields.io/github/last-commit/giorgiobrullo/thelounge?style=for-the-badge&logo=github&logoColor=white&label=Last%20Built" alt="Last Built"></a>
 </p>
