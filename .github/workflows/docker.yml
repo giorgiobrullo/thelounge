@@ -2,8 +2,6 @@
 name: Build & Push Docker Image
 
 on:
-  schedule:
-    - cron: '0 0 1 * *'  # 1st of each month
   push:
     branches: [master]
   workflow_dispatch:

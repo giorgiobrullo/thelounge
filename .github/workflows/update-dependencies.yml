@@ -1,0 +1,32 @@
+# .github/workflows/update-dependencies.yml
+name: Monthly Update
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # 1st of each month
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Update dependencies
+        run: bun update
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bun.lock package.json
+          if git diff --cached --quiet; then
+            git commit --allow-empty -m "chore: monthly security rebuild $(date +%Y-%m)"
+          else
+            git commit -m "chore: monthly dependency update $(date +%Y-%m)"
+          fi
+          git push
