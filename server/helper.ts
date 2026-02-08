@@ -67,9 +67,15 @@ function getGitCommit() {
 			.trim();
 		return _gitCommit;
 	} catch (e: any) {
-		// Not a git repository or git is not installed
-		_gitCommit = null;
-		return null;
+		// Not a git repository or git is not installed — try .git-commit file
+		// (baked in during Docker build)
+		try {
+			_gitCommit = fs.readFileSync(path.resolve(__dirname, "..", ".git-commit"), "utf-8").trim();
+			return _gitCommit;
+		} catch {
+			_gitCommit = null;
+			return null;
+		}
 	}
 }
 

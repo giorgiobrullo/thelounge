@@ -4,6 +4,9 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install
 COPY . .
+# Bake the git commit hash into a file so the app can identify itself
+# even without .git in the final image.
+RUN git rev-parse --short HEAD > .git-commit
 # Build sequentially: webpack (client) first, then tsc (server).
 # run-p runs both in parallel, causing webpack to clobber dist/shared/types/
 # that tsc emits, resulting in "Cannot find module '../shared/types/chan'" at runtime.

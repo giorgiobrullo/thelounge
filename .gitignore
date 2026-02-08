@@ -9,3 +9,4 @@ public/
 dist/
 .yarn
 .yarn/
+.git-commit
