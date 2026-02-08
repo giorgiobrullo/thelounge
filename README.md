@@ -1,95 +1,96 @@
 <h1 align="center">
-	<img
-		width="300"
-		alt="The Lounge"
-		src="https://raw.githubusercontent.com/thelounge/thelounge/master/client/img/logo-vertical-transparent-bg.svg?sanitize=true">
+  <img
+    width="300"
+    alt="The Lounge"
+    src="https://raw.githubusercontent.com/thelounge/thelounge/master/client/img/logo-vertical-transparent-bg.svg?sanitize=true">
 </h1>
 
-<h3 align="center">
-	Modern web IRC client designed for self-hosting
-</h3>
-
 <p align="center">
-	<strong>
-		<a href="https://thelounge.chat/">Website</a>
-		•
-		<a href="https://thelounge.chat/docs">Docs</a>
-		•
-		<a href="https://demo.thelounge.chat/">Demo</a>
-    •
-		<a href="https://github.com/thelounge/thelounge-docker">Docker</a>
-	</strong>
-</p>
-<p align="center">
-	<a href="https://demo.thelounge.chat/"><img
-		alt="#thelounge IRC channel on Libera.Chat"
-		src="https://img.shields.io/badge/Libera.Chat-%23thelounge-415364.svg?colorA=ff9e18"></a>
-	<a href="https://yarn.pm/thelounge"><img
-		alt="npm version"
-		src="https://img.shields.io/npm/v/thelounge.svg?colorA=333a41&maxAge=3600"></a>
-	<a href="https://github.com/thelounge/thelounge/actions"><img
-		alt="Build Status"
-		src="https://github.com/thelounge/thelounge/workflows/Build/badge.svg"></a>
+  <a href="https://github.com/giorgiobrullo/thelounge/pkgs/container/thelounge"><img src="https://img.shields.io/badge/ghcr.io-Docker_Image-blue?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
+  <a href="https://github.com/thelounge/thelounge"><img src="https://img.shields.io/badge/Upstream-thelounge%2Fthelounge-333a41?style=for-the-badge&logo=github&logoColor=white" alt="Upstream"></a>
 </p>
 
 <p align="center">
-	<img src="https://raw.githubusercontent.com/thelounge/thelounge.github.io/master/img/thelounge-screenshot.png" width="550">
+  Personal fork of <a href="https://thelounge.chat/">The Lounge</a>, a modern self-hosted web IRC client.
 </p>
 
-## Overview
+## About
 
-- **Modern features brought to IRC.** Push notifications, link previews, new message markers, and more bring IRC to the 21st century.
-- **Always connected.** Remains connected to IRC servers while you are offline.
-- **Cross platform.** It doesn't matter what OS you use, it just works wherever Node.js runs.
-- **Responsive interface.** The client works smoothly on every desktop, smartphone and tablet.
-- **Synchronized experience.** Always resume where you left off no matter what device.
+This is a personal fork where I maintain Docker images with up-to-date dependencies and base layers, occasionally cherry-pick unmerged PRs I find useful, and fix build issues as they come up (like the webpack/tsc parallel build race condition that was silently dropping `dist/shared/types/`).
 
-To learn more about configuration, usage and features of The Lounge, take a look at [the website](https://thelounge.chat).
-
-The Lounge is the official and community-managed fork of [Shout](https://github.com/erming/shout), by [Mattias Erming](https://github.com/erming).
-
-## Installation and usage
-
-The Lounge requires latest [Node.js](https://nodejs.org/) LTS version or more recent.
-The [Yarn package manager](https://yarnpkg.com/) is also recommended.
-If you want to install with npm, `--unsafe-perm` is required for a correct install.
-
-### Running stable releases
-
-Please refer to the [install and upgrade documentation on our website](https://thelounge.chat/docs/install-and-upgrade) for all available installation methods.
-
-### Running from source
-
-The following commands install and run the development version of The Lounge:
-
-```sh
-git clone https://github.com/thelounge/thelounge.git
-cd thelounge
-yarn install
-NODE_ENV=production yarn build
-yarn start
+## Docker
+```bash
+docker pull ghcr.io/giorgiobrullo/thelounge:latest
 ```
 
-When installed like this, `thelounge` executable is not created. Use `node index <command>` to run commands.
+### Simple setup
+```yaml
+services:
+  thelounge:
+    image: ghcr.io/giorgiobrullo/thelounge:latest
+    volumes:
+      - /path/to/.thelounge:/var/opt/thelounge
+    ports:
+      - 9000:9000
+    restart: on-failure
+```
 
-⚠️ While it is the most recent codebase, this is not production-ready! Run at
-your own risk. It is also not recommended to run this as root.
+### With Traefik v3
+```yaml
+services:
+  traefik:
+    image: traefik:v3.6
+    restart: always
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.network=traefik"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entryPoint.permanent=true"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.default.acme.tlschallenge=true"
+      - "--certificatesresolvers.default.acme.email=you@example.com"
+      - "--certificatesresolvers.default.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik
 
-## Development setup
+  thelounge:
+    image: ghcr.io/giorgiobrullo/thelounge:latest
+    volumes:
+      - /path/to/.thelounge:/var/opt/thelounge
+    restart: on-failure
+    expose:
+      - 9000
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.thelounge.entrypoints=websecure
+      - traefik.http.routers.thelounge.rule=Host(`irc.example.com`)
+      - traefik.http.routers.thelounge.tls=true
+      - traefik.http.routers.thelounge.tls.certResolver=default
+      - traefik.http.services.thelounge.loadbalancer.server.port=9000
 
-Simply follow the instructions to run The Lounge from source above, on your own
-fork.
+volumes:
+  letsencrypt:
 
-Before submitting any change, make sure to:
+networks:
+  traefik:
+    external: true
+```
 
-- Read the [Contributing instructions](https://github.com/thelounge/thelounge/blob/master/.github/CONTRIBUTING.md#contributing)
-- Run `yarn test` to execute linters and the test suite
-  - Run `yarn format:prettier` if linting fails
-- Run `yarn build:client` if you change or add anything in `client/js` or `client/components`
-  - The built files will be output to `public/` by webpack
-- Run `yarn build:server` if you change anything in `server/`
-  - The built files will be output to `dist/` by tsc
-- `yarn dev` can be used to start The Lounge with hot module reloading
+## Upstream
 
-To ensure that you don't commit files that fail the linting, you can install a pre-commit git hook.
-Execute `yarn githooks-install` to do so.
+All credit goes to the original [The Lounge](https://github.com/thelounge/thelounge) team. This fork tracks upstream `master` and rebases on top.
+
+## License
+
+[MIT](LICENSE) — same as upstream.
