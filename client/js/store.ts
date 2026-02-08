@@ -62,15 +62,12 @@ export type State = {
 		| undefined
 		| {
 				latest?: {
-					version: string;
-					prerelease: boolean;
+					commit: string;
 					url: string;
 				};
 				current?: {
-					version: string;
-					prerelease: boolean;
+					commit: string;
 					url: string;
-					changelog?: string;
 				};
 		  };
 	versionStatus: "loading" | "new-version" | "new-packages" | "up-to-date" | "error";
