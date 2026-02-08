@@ -1,31 +1,33 @@
-import got, {Response} from "got";
+import got from "got";
 import colors from "chalk";
 import log from "../log";
 import pkg from "../../package.json";
+import Helper from "../helper";
 import ClientManager from "../clientManager";
 import Config from "../config";
 import {SharedChangelogData} from "../../shared/types/changelog";
 
 const TIME_TO_LIVE = 15 * 60 * 1000; // 15 minutes, in milliseconds
 
+const GITHUB_REPO = "giorgiobrullo/thelounge";
+
 export default {
 	isUpdateAvailable: false,
-	fetch,
+	fetch: fetchVersionData,
 	checkForUpdates,
 };
+
 const versions: SharedChangelogData = {
 	current: {
-		prerelease: false,
-		version: `v${pkg.version}`,
-		changelog: undefined,
-		url: "", // TODO: properly init
+		commit: Helper.getGitCommit() || "unknown",
+		url: `https://github.com/${GITHUB_REPO}/commit/${Helper.getGitCommit() || "master"}`,
 	},
 	expiresAt: -1,
 	latest: undefined,
 	packages: undefined,
 };
 
-async function fetch() {
+async function fetchVersionData() {
 	const time = Date.now();
 
 	// Serving information from cache
@@ -34,72 +36,56 @@ async function fetch() {
 	}
 
 	try {
-		const response = await got("https://api.github.com/repos/thelounge/thelounge/releases", {
-			headers: {
-				Accept: "application/vnd.github.v3.html", // Request rendered markdown
-				"User-Agent": pkg.name + "; +" + pkg.repository.url, // Identify the client
-			},
-			localAddress: Config.values.bind,
-		});
+		const response = await got(
+			`https://api.github.com/repos/${GITHUB_REPO}/commits/master`,
+			{
+				headers: {
+					Accept: "application/vnd.github.v3+json",
+					"User-Agent": pkg.name + "; +" + pkg.repository.url,
+				},
+				localAddress: Config.values.bind,
+			}
+		);
 
 		if (response.statusCode !== 200) {
 			return versions;
 		}
 
-		updateVersions(response);
+		const data = JSON.parse(response.body);
+		const remoteSha = data.sha as string;
+		const remoteShort = remoteSha.substring(0, 7);
+		const localCommit = Helper.getGitCommit();
 
-		// Add expiration date to the data to send to the client for later refresh
+		// If we can't determine local commit, we can't compare
+		if (!localCommit) {
+			versions.expiresAt = time + TIME_TO_LIVE;
+			return versions;
+		}
+
+		// Check if the remote commit matches the local one
+		const isMatch =
+			remoteSha.startsWith(localCommit) || localCommit.startsWith(remoteShort);
+
+		if (!isMatch) {
+			module.exports.isUpdateAvailable = true;
+
+			versions.latest = {
+				commit: remoteShort,
+				url: `https://github.com/${GITHUB_REPO}/compare/${localCommit}...${remoteShort}`,
+			};
+		}
+
 		versions.expiresAt = time + TIME_TO_LIVE;
 	} catch (error) {
 		// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-		log.error(`Failed to fetch changelog: ${error}`);
+		log.error(`Failed to fetch version info: ${error}`);
 	}
 
 	return versions;
 }
 
-function updateVersions(response: Response<string>) {
-	let i: number;
-	let release: {tag_name: string; body_html: any; prerelease: boolean; html_url: any};
-	let prerelease = false;
-
-	const body = JSON.parse(response.body);
-
-	// Find the current release among releases on GitHub
-	for (i = 0; i < body.length; i++) {
-		release = body[i];
-
-		if (release.tag_name === versions.current.version) {
-			versions.current.changelog = release.body_html;
-			prerelease = release.prerelease;
-
-			break;
-		}
-	}
-
-	// Find the latest release made after the current one if there is one
-	if (i > 0) {
-		for (let j = 0; j < i; j++) {
-			release = body[j];
-
-			// Find latest release or pre-release if current version is also a pre-release
-			if (!release.prerelease || release.prerelease === prerelease) {
-				module.exports.isUpdateAvailable = true;
-
-				versions.latest = {
-					prerelease: release.prerelease,
-					version: release.tag_name,
-					url: release.html_url,
-				};
-
-				break;
-			}
-		}
-	}
-}
-
 function checkForUpdates(manager: ClientManager) {
-	fetch()
+	fetchVersionData()
 		.then((versionData) => {
 			if (!module.exports.isUpdateAvailable) {
 				// Check for updates every 24 hours + random jitter of <3 hours
@@ -115,8 +101,8 @@ function checkForUpdates(manager: ClientManager) {
 
 			log.info(
 				`The Lounge ${colors.green(
-					versionData.latest.version
-				)} is available. Read more on GitHub: ${versionData.latest.url}`
+					versionData.latest.commit
+				)} is available. See what changed: ${versionData.latest.url}`
 			);
 
 			// Notify all connected clients about the new version

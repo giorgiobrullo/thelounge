@@ -1,14 +1,11 @@
 export type SharedChangelogData = {
 	current: {
-		prerelease: boolean;
-		version: string;
-		changelog?: string;
+		commit: string;
 		url: string;
 	};
 	expiresAt: number;
 	latest?: {
-		prerelease: boolean;
-		version: string;
+		commit: string;
 		url: string;
 	};
 	packages?: boolean;
