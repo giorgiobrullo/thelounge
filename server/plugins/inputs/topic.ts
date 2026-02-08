@@ -19,7 +19,13 @@ const input: PluginInputHandler = function ({irc}, chan, cmd, args) {
 		return;
 	}
 
-	irc.setTopic(chan.name, args.join(" "));
+	if (args.length === 0) {
+		// Request the current topic instead of clearing it
+		irc.raw("TOPIC", chan.name);
+	} else {
+		irc.setTopic(chan.name, args.join(" "));
+	}
+
 	return true;
 };
 
