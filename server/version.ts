@@ -24,8 +24,10 @@ export function getGitCommit(): string | null {
 		// Not a git repository or git is not installed - fall back to the
 		// .git-commit file baked in during the Docker build.
 		try {
+			// Resolve from the app root rather than a relative hop: this file
+			// compiles to dist/server/version.js, so ".." would land in dist/.
 			_gitCommit = fs
-				.readFileSync(path.resolve(__dirname, "..", ".git-commit"), "utf-8")
+				.readFileSync(path.resolve(__dirname, "..", "..", ".git-commit"), "utf-8")
 				.trim();
 		} catch {
 			_gitCommit = null;
