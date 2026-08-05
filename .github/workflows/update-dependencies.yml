@@ -16,8 +16,18 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      # package.json pins exact versions, so plain `bun update` can never
+      # move anything. --latest ignores the pinned range and actually upgrades.
       - name: Update dependencies
-        run: bun update
+        run: bun update --latest
+
+      # Never push dependencies that don't build. If this fails the job fails
+      # and nothing is committed.
+      - name: Verify the build still works
+        run: |
+          bun install
+          NODE_ENV=production bun run build:client
+          bun run build:server
 
       - name: Commit and push
         run: |
@@ -25,7 +35,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add bun.lock package.json
           if git diff --cached --quiet; then
-            git commit --allow-empty -m "chore: monthly security rebuild $(date +%Y-%m)"
+            # Nothing to update. Still push an empty commit to trigger
+            # docker.yml, which rebuilds and so picks up base-image security
+            # patches - but say so honestly.
+            git commit --allow-empty -m "chore: monthly base-image rebuild $(date +%Y-%m) (no dependency changes)"
           else
             git commit -m "chore: monthly dependency update $(date +%Y-%m)"
           fi
