@@ -9,3 +9,5 @@ coverage/
 dist/
 test/public/
 client/public/fonts/*.woff*
+.git-commit
+.yarn/

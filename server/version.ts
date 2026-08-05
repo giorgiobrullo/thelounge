@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import {execSync} from "child_process";
 import pkg from "../package.json";
 
@@ -19,7 +21,15 @@ export function getGitCommit(): string | null {
 			stdio: ["ignore", "pipe", "ignore"],
 		}).trim();
 	} catch {
-		_gitCommit = null;
+		// Not a git repository or git is not installed - fall back to the
+		// .git-commit file baked in during the Docker build.
+		try {
+			_gitCommit = fs
+				.readFileSync(path.resolve(__dirname, "..", ".git-commit"), "utf-8")
+				.trim();
+		} catch {
+			_gitCommit = null;
+		}
 	}
 
 	return _gitCommit;

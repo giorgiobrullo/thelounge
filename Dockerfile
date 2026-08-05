@@ -4,9 +4,13 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install
 COPY . .
-# Build sequentially: webpack (client) first, then tsc (server).
-# run-p runs both in parallel, causing webpack to clobber dist/shared/types/
-# that tsc emits, resulting in "Cannot find module '../shared/types/chan'" at runtime.
+# Bake the git commit hash into a file so the app can identify itself:
+# the runtime image has no .git directory and no git binary, so
+# server/version.ts falls back to reading this file.
+RUN git rev-parse --short HEAD > .git-commit
+
+# Build client (vite) then server (tsc). Kept sequential: upstream's
+# `run-p` parallel build has historically raced on dist/shared/types/.
 RUN NODE_ENV=production bun run build:client && bun run build:server
 
 FROM node:24-alpine
