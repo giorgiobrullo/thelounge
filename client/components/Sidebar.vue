@@ -46,6 +46,28 @@
 						@keypress.enter="navigate"
 					/> </router-link
 			></span>
+			<span
+				v-if="store.state.serverConfiguration?.xdcc"
+				class="tooltipped tooltipped-n tooltipped-no-touch"
+				:aria-label="transferLabel"
+				><router-link
+					v-slot:default="{navigate, isActive}"
+					to="/transfers"
+					role="tab"
+					aria-controls="transfers"
+				>
+					<button
+						:class="['icon', 'transfers', {active: isActive}]"
+						:aria-selected="isActive"
+						@click="navigate"
+						@keypress.enter="navigate"
+					>
+						<span v-if="activeTransferCount" class="transfer-count">
+							{{ activeTransferCount > 9 ? "9+" : activeTransferCount }}
+						</span>
+					</button>
+				</router-link></span
+			>
 			<span class="tooltipped tooltipped-n tooltipped-no-touch" aria-label="Settings"
 				><router-link
 					v-slot:default="{navigate, isActive}"
@@ -90,7 +112,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, nextTick, onMounted, onUnmounted, PropType, ref} from "vue";
+import {computed, defineComponent, nextTick, onMounted, onUnmounted, PropType, ref} from "vue";
 import {useRoute} from "vue-router";
 import {useStore} from "../js/store";
 import NetworkList from "./NetworkList.vue";
@@ -108,6 +130,17 @@ export default defineComponent({
 
 		const store = useStore();
 		const route = useRoute();
+		const activeTransferCount = computed(
+			() =>
+				store.state.xdccTransfers.filter((transfer) =>
+					["connecting", "transferring"].includes(transfer.status)
+				).length
+		);
+		const transferLabel = computed(() =>
+			activeTransferCount.value
+				? `Transfers\n(${activeTransferCount.value} active)`
+				: "Transfers"
+		);
 
 		const touchStartPos = ref<Touch | null>();
 		const touchCurPos = ref<Touch | null>();
@@ -254,9 +287,11 @@ export default defineComponent({
 		const isPublic = () => document.body.classList.contains("public");
 
 		return {
+			activeTransferCount,
 			isDevelopment,
 			store,
 			route,
+			transferLabel,
 			sidebar,
 			toggle,
 			onTouchStart,

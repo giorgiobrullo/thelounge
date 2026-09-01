@@ -1,5 +1,5 @@
 import _ from "lodash";
-import {MessageType, LinkPreview, UserInMessage} from "../../shared/types/msg";
+import {MessageType, LinkPreview, UserInMessage, XdccFile} from "../../shared/types/msg";
 
 class Msg {
 	from!: UserInMessage;
@@ -24,6 +24,7 @@ class Msg {
 	new_ident!: string;
 	new_host!: string;
 	ctcpMessage!: string;
+	xdcc?: XdccFile;
 	command!: string;
 	invitedYou!: boolean;
 	gecos!: string;
@@ -91,6 +92,7 @@ class Msg {
 			case MessageType.RAW:
 			case MessageType.WHOIS:
 			case MessageType.PLUGIN:
+			case MessageType.XDCC:
 				return false;
 			default:
 				return true;

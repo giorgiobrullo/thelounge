@@ -2,7 +2,7 @@ import type {TypingStatus} from "./typing";
 import {SharedMention} from "./mention";
 import {ChanState, SharedChan} from "./chan";
 import {SharedNetwork, SharedServerOptions} from "./network";
-import {SharedMsg, LinkPreview} from "./msg";
+import {SharedMsg, LinkPreview, XdccTransfer, XdccTransferUpdate} from "./msg";
 import {SharedUser} from "./user";
 import {SharedChangelogData} from "./changelog";
 import {SharedConfiguration, LockedSharedConfiguration} from "./config";
@@ -26,6 +26,8 @@ interface ServerToClientEvents {
 	"auth:success": NoPayloadEventHandler;
 
 	"upload:auth": (token: string) => void;
+	"xdcc:list": EventHandler<XdccTransfer[]>;
+	"xdcc:update": EventHandler<XdccTransferUpdate>;
 
 	changelog: EventHandler<SharedChangelogData>;
 	"changelog:newversion": NoPayloadEventHandler;
@@ -144,6 +146,7 @@ interface ClientToServerEvents {
 
 	"upload:auth": NoPayloadEventHandler;
 	"upload:ping": (token: string) => void;
+	"xdcc:cancel": EventHandler<{id: string}>;
 
 	"mute:change": EventHandler<{target: number; setMutedTo: boolean}>;
 

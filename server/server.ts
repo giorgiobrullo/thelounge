@@ -12,6 +12,7 @@ import log from "./log";
 import Client from "./client";
 import ClientManager from "./clientManager";
 import Uploader from "./plugins/uploader";
+import Xdcc from "./plugins/xdcc";
 import Helper from "./helper";
 import Config from "./config";
 import Identification from "./identification";
@@ -99,6 +100,8 @@ export default async function (
 	if (Config.values.fileUpload.enable) {
 		Uploader.router(app);
 	}
+
+	Xdcc.router(app);
 
 	// This route serves *installed themes only*. Local themes are served directly
 	// from the `public/themes/` folder as static assets, without entering this
@@ -450,6 +453,12 @@ function initializeClient(
 	if (Config.values.fileUpload.enable) {
 		new Uploader(socket);
 	}
+
+	socket.on("xdcc:cancel", (data) => {
+		if (_.isPlainObject(data) && typeof data.id === "string") {
+			Xdcc.cancelTransfer(data.id, client.id);
+		}
+	});
 
 	socket.on("disconnect", function () {
 		process.nextTick(() => client.clientDetach(socket.id));
@@ -874,6 +883,7 @@ function initializeClient(
 			token: tokenToSend,
 		});
 		socket.emit("commands", inputs.getCommands());
+		socket.emit("xdcc:list", Xdcc.getTransfers(client.id));
 	};
 
 	if (Config.values.public) {
@@ -895,6 +905,7 @@ function initializeClient(
 function getClientConfiguration(): SharedConfiguration | LockedSharedConfiguration {
 	const common = {
 		fileUpload: Config.values.fileUpload.enable,
+		xdcc: Config.values.xdcc.enable,
 		ldapEnabled: Config.values.ldap.enable,
 		isUpdateAvailable: changelog.isUpdateAvailable,
 		applicationServerKey: manager!.webPush.vapidKeys!.publicKey,

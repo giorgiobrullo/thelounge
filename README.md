@@ -24,11 +24,13 @@
 This is a personal fork where I maintain Docker images with up-to-date dependencies and base layers, occasionally cherry-pick unmerged PRs I find useful, and fix build issues as they come up (like the webpack/tsc parallel build race condition that was silently dropping `dist/shared/types/`).
 
 ## Docker
+
 ```bash
 docker pull ghcr.io/giorgiobrullo/thelounge:latest
 ```
 
 ### Simple setup
+
 ```yaml
 services:
   thelounge:
@@ -41,6 +43,7 @@ services:
 ```
 
 ### With Traefik v3
+
 ```yaml
 services:
   traefik:

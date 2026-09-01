@@ -36,16 +36,13 @@ async function fetchVersionData() {
 	}
 
 	try {
-		const response = await got(
-			`https://api.github.com/repos/${GITHUB_REPO}/commits/master`,
-			{
-				headers: {
-					Accept: "application/vnd.github.v3+json",
-					"User-Agent": pkg.name + "; +" + pkg.repository.url,
-				},
-				localAddress: Config.values.bind,
-			}
-		);
+		const response = await got(`https://api.github.com/repos/${GITHUB_REPO}/commits/master`, {
+			headers: {
+				Accept: "application/vnd.github.v3+json",
+				"User-Agent": pkg.name + "; +" + pkg.repository.url,
+			},
+			localAddress: Config.values.bind,
+		});
 
 		if (response.statusCode !== 200) {
 			return versions;
@@ -63,8 +60,7 @@ async function fetchVersionData() {
 		}
 
 		// Check if the remote commit matches the local one
-		const isMatch =
-			remoteSha.startsWith(localCommit) || localCommit.startsWith(remoteShort);
+		const isMatch = remoteSha.startsWith(localCommit) || localCommit.startsWith(remoteShort);
 
 		if (!isMatch) {
 			module.exports.isUpdateAvailable = true;

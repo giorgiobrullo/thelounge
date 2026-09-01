@@ -272,6 +272,7 @@ p {
 #loading pre,
 #help .container,
 #changelog .container,
+#transfers .container,
 .header .title,
 .header .topic,
 #chat .messages {
@@ -330,6 +331,7 @@ p {
 #chat .msg[data-command="info"] .from::before,
 #chat .msg[data-type="ctcp"] .from::before,
 #chat .msg[data-type="ctcp_request"] .from::before,
+#chat .msg[data-type="xdcc"] .from::before,
 #chat .msg[data-type="whois"] .from::before,
 #chat .msg[data-type="nick"] .from::before,
 #chat .msg[data-type="chghost"] .from::before,
@@ -415,6 +417,8 @@ p {
 
 #footer .connect::before { content: "\f067"; /* http://fontawesome.io/icon/plus/ */ }
 
+#footer .transfers::before { content: "\f019"; /* https://fontawesome.com/icons/download?style=solid */ }
+
 #footer .settings::before { content: "\f013"; /* http://fontawesome.io/icon/cog/ */ }
 
 #footer .help::before { content: "\f059"; /* http://fontawesome.io/icon/question/ */ }
@@ -497,6 +501,62 @@ p {
 #chat .msg[data-type="ctcp_request"] .from::before {
 	content: "\f15c"; /* https://fontawesome.com/icons/file-alt?style=solid */
 	color: var(--body-color-muted);
+}
+
+#chat .msg[data-type="xdcc"] .from::before {
+	content: "\f56d"; /* https://fontawesome.com/icons/file-download?style=solid */
+	color: var(--button-color);
+}
+
+#chat .msg[data-type="xdcc"] .from {
+	align-self: center;
+}
+
+#chat .xdcc-file-name {
+	overflow-wrap: anywhere;
+}
+
+#chat .xdcc-file-size {
+	color: var(--body-color-muted);
+}
+
+#chat .xdcc-file-security {
+	color: var(--body-color-muted);
+}
+
+#chat .xdcc-offer-expired .xdcc-file-name {
+	color: var(--body-color-muted);
+	text-decoration: line-through;
+}
+
+#chat .xdcc-download,
+#chat .xdcc-status {
+	margin: 0 0 0 8px;
+}
+
+#chat .xdcc-status {
+	border: 1px solid currentcolor;
+	border-radius: 3px;
+	box-sizing: border-box;
+	color: var(--body-color-muted);
+	display: inline-block;
+	font-size: 12px;
+	line-height: 18px;
+	padding: 4px 8px;
+	text-align: center;
+}
+
+#chat .xdcc-status-completed,
+#chat .xdcc-status-transferring {
+	color: var(--link-color);
+}
+
+#chat .xdcc-status-connecting {
+	color: #f39c12;
+}
+
+#chat .xdcc-status-failed {
+	color: #e74c3c;
 }
 
 #chat .msg[data-type="whois"] .from::before {
@@ -999,9 +1059,27 @@ background on hover (unless active) */
 #footer button {
 	color: #b7c5d1;
 	display: inline-block;
+	position: relative;
 	width: 45px;
 	height: 100%;
 	border-radius: 5px;
+}
+
+#footer .transfer-count {
+	align-items: center;
+	background: var(--button-color);
+	border: 2px solid var(--body-bg-color);
+	border-radius: 9px;
+	color: var(--button-text-color-hover);
+	display: flex;
+	font: bold 9px/1 sans-serif;
+	height: 18px;
+	justify-content: center;
+	min-width: 18px;
+	padding: 0 3px;
+	position: absolute;
+	right: 3px;
+	top: 4px;
 }
 
 #footer .help.notified::after {
@@ -2288,6 +2366,251 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 	overflow: hidden;
 }
 
+/* XDCC transfer manager */
+
+.transfers-container {
+	max-width: 100%;
+	width: 680px;
+}
+
+.transfers-summary {
+	align-items: center;
+	border-top: 1px solid color-mix(in srgb, var(--body-color) 6%, var(--window-bg-color));
+	color: var(--body-color-muted);
+	display: flex;
+	font-size: 13px;
+	justify-content: space-between;
+	margin: 10px 0 0;
+	padding: 10px 0 0;
+}
+
+.transfers-summary p,
+.transfers-summary .btn {
+	margin: 0;
+}
+
+.transfers-empty {
+	align-items: center;
+	border-top: 1px solid color-mix(in srgb, var(--body-color) 6%, var(--window-bg-color));
+	color: var(--body-color-muted);
+	display: flex;
+	gap: 14px;
+	margin-top: 10px;
+	padding: 26px 4px 20px;
+}
+
+.transfers-empty-icon::before,
+.transfer-file-icon::before {
+	font: normal normal normal 14px/1 FontAwesome;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+.transfers-empty-icon::before {
+	content: "\f56d"; /* https://fontawesome.com/icons/file-download?style=solid */
+	font-size: 26px;
+}
+
+.transfers-empty strong {
+	color: var(--window-heading-color);
+	display: block;
+	font-size: 14px;
+	font-weight: 500;
+	margin-bottom: 2px;
+}
+
+.transfers-empty p {
+	font-size: 13px;
+	margin: 0;
+}
+
+.transfer-list {
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+}
+
+.transfer-item {
+	align-items: center;
+	border-top: 1px solid color-mix(in srgb, var(--body-color) 6%, var(--window-bg-color));
+	display: grid;
+	gap: 12px;
+	grid-template-columns: 30px minmax(0, 1fr) auto;
+	padding: 14px 0;
+}
+
+.transfer-file-icon {
+	text-align: center;
+}
+
+.transfer-file-icon::before {
+	color: var(--button-color);
+	content: "\f15b"; /* https://fontawesome.com/icons/file?style=solid */
+	font-size: 24px;
+}
+
+.transfer-file-icon-video::before {
+	content: "\f1c8"; /* https://fontawesome.com/icons/file-video?style=solid */
+}
+
+.transfer-file-icon-audio::before {
+	content: "\f1c7"; /* https://fontawesome.com/icons/file-audio?style=solid */
+}
+
+.transfer-file-icon-image::before {
+	content: "\f1c5"; /* https://fontawesome.com/icons/file-image?style=solid */
+}
+
+.transfer-file-icon-archive::before {
+	content: "\f1c6"; /* https://fontawesome.com/icons/file-archive?style=solid */
+}
+
+.transfer-file-icon-pdf::before {
+	content: "\f1c1"; /* https://fontawesome.com/icons/file-pdf?style=solid */
+}
+
+.transfer-file-icon-document::before {
+	content: "\f1c2"; /* https://fontawesome.com/icons/file-word?style=solid */
+}
+
+.transfer-file-icon-spreadsheet::before {
+	content: "\f1c3"; /* https://fontawesome.com/icons/file-excel?style=solid */
+}
+
+.transfer-file-icon-presentation::before {
+	content: "\f1c4"; /* https://fontawesome.com/icons/file-powerpoint?style=solid */
+}
+
+.transfer-file-icon-code::before {
+	content: "\f1c9"; /* https://fontawesome.com/icons/file-code?style=solid */
+}
+
+.transfer-details {
+	min-width: 0;
+}
+
+.transfer-heading {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+	justify-content: space-between;
+}
+
+.transfer-file-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.transfer-item-expired .transfer-file-name {
+	color: var(--body-color-muted);
+	text-decoration: line-through;
+}
+
+.transfer-state {
+	border: 1px solid currentcolor;
+	border-radius: 3px;
+	color: var(--body-color-muted);
+	flex-shrink: 0;
+	font-size: 11px;
+	line-height: 18px;
+	padding: 0 6px;
+}
+
+.transfer-state-transferring,
+.transfer-state-completed {
+	color: var(--link-color);
+}
+
+.transfer-state-failed {
+	color: #e74c3c;
+}
+
+.transfer-state-connecting {
+	color: #f39c12;
+}
+
+.transfer-meta,
+.transfer-status-detail {
+	color: var(--body-color-muted);
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.transfer-meta {
+	margin-top: 2px;
+}
+
+.transfer-tls {
+	border: 1px solid currentcolor;
+	border-radius: 2px;
+	font-size: 9px;
+	margin-left: 5px;
+	padding: 0 3px;
+}
+
+.transfer-status-detail.error {
+	color: #e74c3c;
+}
+
+.transfer-progress {
+	appearance: none;
+	background: rgb(127 127 127 / 20%);
+	border: 0;
+	border-radius: 3px;
+	display: block;
+	height: 6px;
+	margin: 8px 0 4px;
+	overflow: hidden;
+	width: 100%;
+}
+
+.transfer-progress::-webkit-progress-bar {
+	background: rgb(127 127 127 / 20%);
+}
+
+.transfer-progress::-webkit-progress-value {
+	background: var(--button-color);
+}
+
+.transfer-progress::-moz-progress-bar {
+	background: var(--button-color);
+}
+
+.transfer-actions {
+	align-items: stretch;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 86px;
+}
+
+.transfer-actions .btn,
+.transfer-actions .transfer-state {
+	box-sizing: border-box;
+	margin: 0;
+	text-align: center;
+}
+
+@media (max-width: 600px) {
+	.transfer-item {
+		align-items: start;
+		grid-template-columns: 24px minmax(0, 1fr);
+		padding: 12px 0;
+	}
+
+	.transfer-file-icon::before {
+		font-size: 20px;
+	}
+
+	.transfer-actions {
+		align-items: center;
+		flex-direction: row;
+		grid-column: 2;
+		justify-content: flex-end;
+	}
+}
+
 #version-checker {
 	display: flex;
 	align-items: center;
@@ -2385,7 +2708,7 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 @media screen and (orientation: landscape) {
 	/* Pad the form with safe area insets. */
 	#form {
-		padding-bottom: env(safe-area-inset-bottom)
+		padding-bottom: env(safe-area-inset-bottom);
 	}
 
 	/* When the form becomes focused, remove the safe area insets padding. A bit of a hack, but seems to work. */
@@ -2955,6 +3278,21 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 		border: 0;
 		display: inline;
 		padding: 0;
+	}
+
+	#chat .msg[data-type="xdcc"] {
+		display: flex;
+	}
+
+	#chat .msg[data-type="xdcc"] .time,
+	#chat .msg[data-type="xdcc"] .from,
+	#chat .msg[data-type="xdcc"] .content {
+		display: block;
+		width: auto;
+	}
+
+	#chat .msg[data-type="xdcc"] .content {
+		flex: 1 1 auto;
 	}
 
 	#chat .from::after {

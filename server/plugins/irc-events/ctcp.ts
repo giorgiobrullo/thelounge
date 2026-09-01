@@ -4,6 +4,7 @@ import Msg from "../../models/msg";
 import User from "../../models/user";
 import pkg from "../../../package.json";
 import {MessageType} from "../../../shared/types/msg";
+import Xdcc from "../xdcc";
 
 const ctcpResponses = {
 	CLIENTINFO: () =>
@@ -63,6 +64,31 @@ export default <IrcEventHandler>function (irc, network) {
 				}
 
 				const target = data.from_server ? data.hostname : data.nick;
+				const isDirectMessage = data.target.toLowerCase() === irc.user.nick.toLowerCase();
+				const xdcc =
+					data.type === "DCC" && isDirectMessage
+						? Xdcc.registerOffer(data.message, {
+								id: client.id,
+								sender: target,
+								network: network.name,
+								notify: (update) => client.emit("xdcc:update", update),
+						  })
+						: undefined;
+
+				if (xdcc) {
+					const msg = new Msg({
+						type: xdcc.offer ? MessageType.XDCC : MessageType.WARN,
+						time: data.time,
+						from: new User({nick: target}),
+						hostmask: data.ident + "@" + data.hostname,
+						showInActive: true,
+						text: xdcc.error,
+						xdcc: xdcc.offer,
+					});
+					lobby.pushMessage(client, msg, true);
+					return;
+				}
+
 				const response = ctcpResponses[data.type];
 
 				if (response) {

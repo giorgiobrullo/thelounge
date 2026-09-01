@@ -20,6 +20,7 @@ export enum MessageType {
 	QUIT = "quit",
 	CTCP = "ctcp",
 	CTCP_REQUEST = "ctcp_request",
+	XDCC = "xdcc",
 	CHGHOST = "chghost",
 	TOPIC = "topic",
 	TOPIC_SET_BY = "topic_set_by",
@@ -54,6 +55,39 @@ export type LinkPreview = {
 	thumbActualUrl?: string;
 };
 
+export type XdccFile = {
+	id: string;
+	fileName: string;
+	size?: number;
+	url: string;
+	offeredAt: number;
+	expiresAt: number;
+	secure: boolean;
+};
+
+export type XdccTransferStatus =
+	| "offered"
+	| "connecting"
+	| "transferring"
+	| "completed"
+	| "failed"
+	| "cancelled"
+	| "expired";
+
+export type XdccTransfer = XdccFile & {
+	sender: string;
+	network: string;
+	status: XdccTransferStatus;
+	received: number;
+	speed: number;
+	error?: string;
+};
+
+export type XdccTransferUpdate = Pick<
+	XdccTransfer,
+	"id" | "status" | "received" | "speed" | "error"
+>;
+
 export type SharedMsg = {
 	from?: UserInMessage;
 	id: number;
@@ -74,6 +108,7 @@ export type SharedMsg = {
 	new_ident?: string;
 	new_host?: string;
 	ctcpMessage?: string;
+	xdcc?: XdccFile;
 	command?: string;
 	invitedYou?: boolean;
 	gecos?: string;

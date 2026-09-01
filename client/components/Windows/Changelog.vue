@@ -7,15 +7,10 @@
 			<router-link id="back-to-help" to="/help">« Help</router-link>
 
 			<template v-if="store.state.versionData?.current?.commit">
-				<h1 class="title">
-					Current commit: {{ store.state.versionData.current.commit }}
-				</h1>
+				<h1 class="title">Current commit: {{ store.state.versionData.current.commit }}</h1>
 
 				<p>
-					<a
-						:href="store.state.versionData.current.url"
-						target="_blank"
-						rel="noopener"
+					<a :href="store.state.versionData.current.url" target="_blank" rel="noopener"
 						>View this commit on GitHub</a
 					>
 				</p>
@@ -28,10 +23,7 @@
 						is available.
 					</p>
 					<p>
-						<a
-							:href="store.state.versionData.latest.url"
-							target="_blank"
-							rel="noopener"
+						<a :href="store.state.versionData.latest.url" target="_blank" rel="noopener"
 							>See what changed on GitHub</a
 						>
 					</p>
