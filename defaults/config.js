@@ -212,6 +212,7 @@ module.exports = {
 	// - `enable`: Show download controls for valid DCC SEND offers.
 	// - `allowPrivateAddresses`: Allow connections to private and reserved IP
 	//   ranges. Keep this disabled unless you use XDCC on a trusted local network.
+	//   Known literal cloud metadata and control-plane endpoints remain blocked.
 	// - `minPort`: Lowest TCP port that an offer may use. Ports below 1024 are
 	//   blocked by default because they commonly host unrelated system services.
 	// - `maxFileSize`: Maximum advertised or received size in kilobytes. Set to

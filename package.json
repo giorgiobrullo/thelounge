@@ -79,6 +79,7 @@
     "file-type": "22.0.2",
     "filenamify": "4.3.0",
     "got": "11.8.6",
+    "ip-address": "10.7.0",
     "irc-framework": "github:kiwiirc/irc-framework#69d47d1",
     "ldapjs": "2.3.3",
     "linkify-it": "5.0.2",

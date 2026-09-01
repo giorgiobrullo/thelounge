@@ -1,6 +1,7 @@
 import contentDisposition from "content-disposition";
 import crypto from "crypto";
 import type {Application, Request, Response} from "express";
+import {Address4, Address6} from "ip-address";
 import net from "net";
 import tls from "tls";
 
@@ -26,43 +27,39 @@ export type XdccRegistration = {offer: XdccFile; error?: never} | {offer?: never
 const offers = new Map<string, StoredOffer>();
 let activeDownloads = 0;
 
-const blockedIpv4Addresses = new net.BlockList();
-const blockedIpv6Addresses = new net.BlockList();
+// Some cloud providers expose metadata or control-plane services at fixed IPs.
+// Keep them unreachable even when private-network downloads are explicitly enabled.
+const blockedControlPlaneAddresses = new Set([
+	"100.100.100.200",
+	"168.63.129.16",
+	"169.254.169.254",
+	"169.254.170.2",
+	"fd00:ec2::254",
+]);
 
-for (const [address, prefix] of [
-	["0.0.0.0", 8],
-	["10.0.0.0", 8],
-	["100.64.0.0", 10],
-	["127.0.0.0", 8],
-	["169.254.0.0", 16],
-	["172.16.0.0", 12],
-	["192.0.0.0", 24],
-	["192.0.2.0", 24],
-	["192.88.99.0", 24],
-	["192.168.0.0", 16],
-	["198.18.0.0", 15],
-	["198.51.100.0", 24],
-	["203.0.113.0", 24],
-	["224.0.0.0", 4],
-	["240.0.0.0", 4],
-] as const) {
-	blockedIpv4Addresses.addSubnet(address, prefix, "ipv4");
+function parseIpLiteral(value: string): Address4 | Address6 | undefined {
+	try {
+		if (value.includes(":")) {
+			const address = new Address6(value);
+
+			return address.parsedSubnet || address.zone ? undefined : address;
+		}
+
+		const address = new Address4(value);
+		return address.parsedSubnet ? undefined : address;
+	} catch {
+		return undefined;
+	}
 }
 
-for (const [address, prefix] of [
-	["::", 96],
-	["::ffff:0:0", 96],
-	["100::", 64],
-	["64:ff9b::", 96],
-	["64:ff9b:1::", 48],
-	["2001::", 23],
-	["2001:db8::", 32],
-	["2002::", 16],
-	["fc00::", 7],
-	["fe80::", 10],
-	["ff00::", 8],
-] as const) {
-	blockedIpv6Addresses.addSubnet(address, prefix, "ipv6");
+function isBlockedControlPlaneAddress(address: Address4 | Address6): boolean {
+	if (blockedControlPlaneAddresses.has(address.correctForm())) {
+		return true;
+	}
+
+	const embeddedIpv4 = address instanceof Address6 ? address.embeddedIPv4() : null;
+
+	return embeddedIpv4 !== null && blockedControlPlaneAddresses.has(embeddedIpv4.correctForm());
 }
 
 function parseAddress(value: string): string | undefined {
@@ -74,15 +71,13 @@ function parseAddress(value: string): string | undefined {
 				return undefined;
 			}
 
-			return [24n, 16n, 8n, 0n]
-				.map((shift) => Number((numericAddress >> shift) & 0xffn))
-				.join(".");
+			return Address4.fromBigInt(numericAddress).correctForm();
 		} catch {
 			return undefined;
 		}
 	}
 
-	return net.isIP(value) ? value : undefined;
+	return parseIpLiteral(value)?.correctForm();
 }
 
 function cleanFileName(value: string): string | undefined {
@@ -160,10 +155,14 @@ export function parseDccSend(message: string): DccSend | undefined {
 	};
 }
 
-export function isBlockedAddress(address: string): boolean {
-	return net.isIPv6(address)
-		? blockedIpv6Addresses.check(address, "ipv6")
-		: blockedIpv4Addresses.check(address, "ipv4");
+export function isBlockedAddress(address: string, allowPrivateAddresses = false): boolean {
+	const parsed = parseIpLiteral(address);
+
+	if (!parsed) {
+		return true;
+	}
+
+	return isBlockedControlPlaneAddress(parsed) || (!allowPrivateAddresses && !parsed.isGlobal());
 }
 
 function getMaxFileSize(): number {
@@ -194,7 +193,7 @@ function registerOffer(message: string): XdccRegistration | undefined {
 		return {error: "Blocked an XDCC offer to a restricted TCP port."};
 	}
 
-	if (!Config.values.xdcc.allowPrivateAddresses && isBlockedAddress(parsed.address)) {
+	if (isBlockedAddress(parsed.address, Config.values.xdcc.allowPrivateAddresses)) {
 		return {error: "Blocked an XDCC offer to a private or reserved address."};
 	}
 
@@ -257,7 +256,7 @@ function routeDownload(req: Request, res: Response): Response | void {
 		return res.status(404).send("This XDCC offer is invalid or has expired");
 	}
 
-	if (!Config.values.xdcc.allowPrivateAddresses && isBlockedAddress(offer.address)) {
+	if (isBlockedAddress(offer.address, Config.values.xdcc.allowPrivateAddresses)) {
 		return res.status(403).send("This XDCC address is not allowed");
 	}
 
@@ -306,7 +305,29 @@ function routeDownload(req: Request, res: Response): Response | void {
 	source.setNoDelay(true);
 	source.setTimeout(Config.values.xdcc.timeout);
 
+	const validateConnectedAddress = () => {
+		const remoteAddress = source.remoteAddress;
+
+		if (
+			!remoteAddress ||
+			isBlockedAddress(remoteAddress, Config.values.xdcc.allowPrivateAddresses)
+		) {
+			fail(403, "The connected XDCC address is not allowed");
+			return false;
+		}
+
+		return true;
+	};
+
+	if (offer.secure) {
+		source.once("connect", validateConnectedAddress);
+	}
+
 	source.once(offer.secure ? "secureConnect" : "connect", () => {
+		if (!validateConnectedAddress()) {
+			return;
+		}
+
 		res.setHeader(
 			"Content-Disposition",
 			contentDisposition(offer.fileName, {type: "attachment", fallback: false})
