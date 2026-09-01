@@ -27,17 +27,17 @@
 
 			<ul v-else class="transfer-list">
 				<li v-for="transfer in transfers" :key="transfer.id" class="transfer-item">
-					<span class="transfer-file-icon" aria-hidden="true" />
+					<span
+						:class="[
+							'transfer-file-icon',
+							`transfer-file-icon-${fileTypeIcon(transfer.fileName)}`,
+						]"
+						aria-hidden="true"
+					/>
 
 					<div class="transfer-details">
 						<div class="transfer-heading">
 							<strong class="transfer-file-name">{{ transfer.fileName }}</strong>
-							<span
-								:class="['transfer-state', `transfer-state-${transfer.status}`]"
-								aria-live="polite"
-							>
-								{{ statusLabel(transfer) }}
-							</span>
 						</div>
 
 						<div class="transfer-meta">
@@ -78,6 +78,12 @@
 					</div>
 
 					<div class="transfer-actions">
+						<span
+							:class="['transfer-state', `transfer-state-${transfer.status}`]"
+							aria-live="polite"
+						>
+							{{ statusLabel(transfer) }}
+						</span>
 						<a
 							v-if="canDownload(transfer)"
 							class="btn btn-sm"
@@ -103,6 +109,7 @@
 <script lang="ts">
 import {computed, defineComponent, onBeforeUnmount, onMounted, ref} from "vue";
 import type {XdccTransfer, XdccTransferStatus} from "../../../shared/types/msg";
+import fileTypeIcon from "../../js/helpers/fileTypeIcon";
 import friendlysize from "../../js/helpers/friendlysize";
 import socket from "../../js/socket";
 import {useStore} from "../../js/store";
@@ -259,6 +266,7 @@ export default defineComponent({
 			cancel,
 			canDownload,
 			clearFinished,
+			fileTypeIcon,
 			formatTime,
 			hasFinishedTransfers,
 			isActive,

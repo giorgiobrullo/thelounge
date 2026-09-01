@@ -81,6 +81,7 @@ export default <IrcEventHandler>function (irc, network) {
 						time: data.time,
 						from: new User({nick: target}),
 						hostmask: data.ident + "@" + data.hostname,
+						showInActive: true,
 						text: xdcc.error,
 						xdcc: xdcc.offer,
 					});

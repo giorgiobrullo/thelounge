@@ -2402,6 +2402,42 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 	font-size: 24px;
 }
 
+.transfer-file-icon-video::before {
+	content: "\f1c8"; /* https://fontawesome.com/icons/file-video?style=solid */
+}
+
+.transfer-file-icon-audio::before {
+	content: "\f1c7"; /* https://fontawesome.com/icons/file-audio?style=solid */
+}
+
+.transfer-file-icon-image::before {
+	content: "\f1c5"; /* https://fontawesome.com/icons/file-image?style=solid */
+}
+
+.transfer-file-icon-archive::before {
+	content: "\f1c6"; /* https://fontawesome.com/icons/file-archive?style=solid */
+}
+
+.transfer-file-icon-pdf::before {
+	content: "\f1c1"; /* https://fontawesome.com/icons/file-pdf?style=solid */
+}
+
+.transfer-file-icon-document::before {
+	content: "\f1c2"; /* https://fontawesome.com/icons/file-word?style=solid */
+}
+
+.transfer-file-icon-spreadsheet::before {
+	content: "\f1c3"; /* https://fontawesome.com/icons/file-excel?style=solid */
+}
+
+.transfer-file-icon-presentation::before {
+	content: "\f1c4"; /* https://fontawesome.com/icons/file-powerpoint?style=solid */
+}
+
+.transfer-file-icon-code::before {
+	content: "\f1c9"; /* https://fontawesome.com/icons/file-code?style=solid */
+}
+
 .transfer-details {
 	min-width: 0;
 }
@@ -2489,8 +2525,19 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 	background: var(--button-color);
 }
 
-.transfer-actions .btn {
+.transfer-actions {
+	align-items: stretch;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 86px;
+}
+
+.transfer-actions .btn,
+.transfer-actions .transfer-state {
+	box-sizing: border-box;
 	margin: 0;
+	text-align: center;
 }
 
 @media (max-width: 600px) {
@@ -2514,7 +2561,10 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 	}
 
 	.transfer-actions {
+		align-items: center;
+		flex-direction: row;
 		grid-column: 2;
+		justify-content: flex-end;
 	}
 }
 

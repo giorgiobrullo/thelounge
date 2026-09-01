@@ -43,6 +43,7 @@ describe("CTCP event", function () {
 
 		expect(pushMessage.firstCall.args[1].type).to.equal(MessageType.XDCC);
 		expect(pushMessage.firstCall.args[1].xdcc.fileName).to.equal("test.bin");
+		expect(pushMessage.firstCall.args[1].showInActive).to.equal(true);
 	});
 
 	it("does not make channel-targeted DCC SEND requests actionable", function () {
