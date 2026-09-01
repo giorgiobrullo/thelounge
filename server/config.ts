@@ -86,6 +86,7 @@ type StoragePolicy = {
 type XdccConfig = {
 	enable: boolean;
 	allowPrivateAddresses: boolean;
+	minPort: number;
 	maxFileSize: number;
 	maxConcurrentDownloads: number;
 	offerTimeout: number;

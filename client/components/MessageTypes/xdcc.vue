@@ -5,11 +5,16 @@
 		<span v-if="message.xdcc.size !== undefined" class="xdcc-file-size">
 			({{ friendlysize(message.xdcc.size) }})
 		</span>
+		<span v-if="message.xdcc.secure" class="xdcc-file-security">(TLS)</span>
 		<a
 			class="btn btn-sm xdcc-download"
 			:href="message.xdcc.url"
 			download
-			title="Downloads are unencrypted and expose this server's IP address to the sender"
+			:title="
+				message.xdcc.secure
+					? `This TLS connection does not verify the sender's identity and exposes this server's IP address`
+					: `Downloads are unencrypted and expose this server's IP address to the sender`
+			"
 			>Download</a
 		>
 	</span>

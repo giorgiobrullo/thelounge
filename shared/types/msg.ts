@@ -60,6 +60,7 @@ export type XdccFile = {
 	size?: number;
 	url: string;
 	expiresAt: number;
+	secure: boolean;
 };
 
 export type SharedMsg = {

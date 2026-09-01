@@ -513,6 +513,10 @@ p {
 	color: var(--body-color-muted);
 }
 
+#chat .xdcc-file-security {
+	color: var(--body-color-muted);
+}
+
 #chat .xdcc-download {
 	margin: 0 0 0 8px;
 }

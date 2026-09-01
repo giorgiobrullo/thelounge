@@ -212,6 +212,8 @@ module.exports = {
 	// - `enable`: Show download controls for valid DCC SEND offers.
 	// - `allowPrivateAddresses`: Allow connections to private and reserved IP
 	//   ranges. Keep this disabled unless you use XDCC on a trusted local network.
+	// - `minPort`: Lowest TCP port that an offer may use. Ports below 1024 are
+	//   blocked by default because they commonly host unrelated system services.
 	// - `maxFileSize`: Maximum advertised or received size in kilobytes. Set to
 	//   `-1` to allow files of any size. The default is 10 GiB.
 	// - `maxConcurrentDownloads`: Maximum number of active XDCC downloads.
@@ -220,6 +222,7 @@ module.exports = {
 	xdcc: {
 		enable: true,
 		allowPrivateAddresses: false,
+		minPort: 1024,
 		maxFileSize: 10485760,
 		maxConcurrentDownloads: 3,
 		offerTimeout: 300000,

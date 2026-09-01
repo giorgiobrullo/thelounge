@@ -858,12 +858,13 @@
 
 			<div class="help-item">
 				<div class="subject">
-					<code>/xdcc bot pack</code>
+					<code>/xdcc bot pack [tls]</code>
 				</div>
 				<div class="description">
 					<p>
-						Request a pack from an XDCC bot. When the bot offers the file, use the
-						download button in the chat to stream it through The Lounge.
+						Request a pack from an XDCC bot. Add <code>tls</code> to request an encrypted
+						DCC transfer. When the bot offers the file, use the download button in the
+						chat to stream it through The Lounge.
 					</p>
 				</div>
 			</div>

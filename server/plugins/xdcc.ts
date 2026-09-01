@@ -2,6 +2,7 @@ import contentDisposition from "content-disposition";
 import crypto from "crypto";
 import type {Application, Request, Response} from "express";
 import net from "net";
+import tls from "tls";
 
 import Config from "../config";
 import type {XdccFile} from "../../shared/types/msg";
@@ -11,6 +12,8 @@ type DccSend = {
 	address: string;
 	port: number;
 	size?: number;
+	secure: boolean;
+	turbo: boolean;
 };
 
 type StoredOffer = DccSend & {
@@ -23,7 +26,8 @@ export type XdccRegistration = {offer: XdccFile; error?: never} | {offer?: never
 const offers = new Map<string, StoredOffer>();
 let activeDownloads = 0;
 
-const blockedAddresses = new net.BlockList();
+const blockedIpv4Addresses = new net.BlockList();
+const blockedIpv6Addresses = new net.BlockList();
 
 for (const [address, prefix] of [
 	["0.0.0.0", 8],
@@ -42,19 +46,23 @@ for (const [address, prefix] of [
 	["224.0.0.0", 4],
 	["240.0.0.0", 4],
 ] as const) {
-	blockedAddresses.addSubnet(address, prefix, "ipv4");
+	blockedIpv4Addresses.addSubnet(address, prefix, "ipv4");
 }
 
 for (const [address, prefix] of [
-	["::", 128],
-	["::1", 128],
+	["::", 96],
+	["::ffff:0:0", 96],
 	["100::", 64],
+	["64:ff9b::", 96],
+	["64:ff9b:1::", 48],
+	["2001::", 23],
 	["2001:db8::", 32],
+	["2002::", 16],
 	["fc00::", 7],
 	["fe80::", 10],
 	["ff00::", 8],
 ] as const) {
-	blockedAddresses.addSubnet(address, prefix, "ipv6");
+	blockedIpv6Addresses.addSubnet(address, prefix, "ipv6");
 }
 
 function parseAddress(value: string): string | undefined {
@@ -92,41 +100,70 @@ function cleanFileName(value: string): string | undefined {
 	return fileName;
 }
 
-export function parseDccSend(message: string): DccSend | undefined {
-	const match = message.match(
-		/^DCC\s+SEND\s+(?:"([^"]+)"|(\S+))\s+(\S+)\s+(\d+)(?:\s+(\d+))?(?:\s+\S+)?\s*$/i
-	);
+function parseArguments(value: string): {fileName: string; args: string[]} | undefined {
+	const quoted = value.match(/^"((?:\\.|[^"\\])*)"\s+(.+)$/);
+	const unquoted = value.match(/^(\S+)\s+(.+)$/);
+	const match = quoted || unquoted;
 
 	if (!match) {
 		return undefined;
 	}
 
-	const fileName = cleanFileName(match[1] || match[2]);
-	const address = parseAddress(match[3]);
-	const port = Number(match[4]);
-	const size = match[5] === undefined ? undefined : Number(match[5]);
+	const rawFileName = quoted ? match[1].replace(/\\(["\\])/g, "$1") : match[1];
+	const remainder = match[2];
+
+	const fileName = cleanFileName(rawFileName);
+	const args = remainder.split(/\s+/);
+
+	return fileName ? {fileName, args} : undefined;
+}
+
+export function parseDccSend(message: string): DccSend | undefined {
+	const match = message.match(/^DCC\s+(SEND|TSEND|SSEND|TSSEND|STSEND)\s+(.+?)\s*$/i);
+
+	if (!match) {
+		return undefined;
+	}
+
+	const parsed = parseArguments(match[2]);
+
+	if (!parsed || parsed.args.length < 2 || parsed.args.length > 4) {
+		return undefined;
+	}
+
+	const address = parseAddress(parsed.args[0]);
+	const port = Number(parsed.args[1]);
+	const size = parsed.args[2] === undefined ? undefined : Number(parsed.args[2]);
+	const reverseToken = parsed.args[3];
+	const flags = match[1].slice(0, -4).toUpperCase();
 
 	if (
-		!fileName ||
 		!address ||
+		!/^[0-9]+$/.test(parsed.args[1]) ||
 		!Number.isInteger(port) ||
 		port < 0 ||
 		port > 65535 ||
-		(size !== undefined && (!Number.isSafeInteger(size) || size < 0))
+		(size !== undefined &&
+			(!/^[0-9]+$/.test(parsed.args[2]) || !Number.isSafeInteger(size) || size < 0)) ||
+		(reverseToken !== undefined && !/^[0-9]+$/.test(reverseToken))
 	) {
 		return undefined;
 	}
 
-	return {fileName, address, port, size};
+	return {
+		fileName: parsed.fileName,
+		address,
+		port,
+		size,
+		secure: flags.includes("S"),
+		turbo: flags.includes("T"),
+	};
 }
 
 export function isBlockedAddress(address: string): boolean {
-	if (/^::ffff:/i.test(address)) {
-		return true;
-	}
-
-	const family = net.isIPv6(address) ? "ipv6" : "ipv4";
-	return blockedAddresses.check(address, family);
+	return net.isIPv6(address)
+		? blockedIpv6Addresses.check(address, "ipv6")
+		: blockedIpv4Addresses.check(address, "ipv4");
 }
 
 function getMaxFileSize(): number {
@@ -135,7 +172,7 @@ function getMaxFileSize(): number {
 }
 
 function registerOffer(message: string): XdccRegistration | undefined {
-	if (!/^DCC\s+SEND\b/i.test(message)) {
+	if (!/^DCC\s+(?:SEND|TSEND|SSEND|TSSEND|STSEND)\b/i.test(message)) {
 		return undefined;
 	}
 
@@ -151,6 +188,10 @@ function registerOffer(message: string): XdccRegistration | undefined {
 
 	if (parsed.port === 0) {
 		return {error: "Reverse DCC SEND offers are not supported."};
+	}
+
+	if (parsed.port < Config.values.xdcc.minPort) {
+		return {error: "Blocked an XDCC offer to a restricted TCP port."};
 	}
 
 	if (!Config.values.xdcc.allowPrivateAddresses && isBlockedAddress(parsed.address)) {
@@ -175,6 +216,7 @@ function registerOffer(message: string): XdccRegistration | undefined {
 			size: parsed.size,
 			url: `xdcc/${token}/${encodeURIComponent(parsed.fileName)}`,
 			expiresAt,
+			secure: parsed.secure,
 		},
 	};
 }
@@ -219,16 +261,23 @@ function routeDownload(req: Request, res: Response): Response | void {
 		return res.status(403).send("This XDCC address is not allowed");
 	}
 
+	if (offer.port < Config.values.xdcc.minPort) {
+		return res.status(403).send("This XDCC port is not allowed");
+	}
+
 	activeDownloads++;
 	let received = 0;
 	let finished = false;
 	let upstreamEnded = false;
 	const maxFileSize = getMaxFileSize();
-	const source = net.createConnection({
+	const connectionOptions = {
 		host: offer.address,
 		port: offer.port,
 		localAddress: Config.values.bind,
-	});
+	};
+	const source = offer.secure
+		? tls.connect({...connectionOptions, rejectUnauthorized: false})
+		: net.createConnection(connectionOptions);
 
 	const cleanup = () => {
 		if (finished) {
@@ -257,7 +306,7 @@ function routeDownload(req: Request, res: Response): Response | void {
 	source.setNoDelay(true);
 	source.setTimeout(Config.values.xdcc.timeout);
 
-	source.once("connect", () => {
+	source.once(offer.secure ? "secureConnect" : "connect", () => {
 		res.setHeader(
 			"Content-Disposition",
 			contentDisposition(offer.fileName, {type: "attachment", fallback: false})
@@ -281,9 +330,12 @@ function routeDownload(req: Request, res: Response): Response | void {
 		}
 
 		const canContinue = res.write(chunk);
-		const acknowledgement = Buffer.allocUnsafe(4);
-		acknowledgement.writeUInt32BE(received % 0x100000000);
-		source.write(acknowledgement);
+
+		if (!offer.turbo || (offer.size !== undefined && received === offer.size)) {
+			const acknowledgement = Buffer.allocUnsafe(4);
+			acknowledgement.writeUInt32BE(received % 0x100000000);
+			source.write(acknowledgement);
+		}
 
 		if (!canContinue) {
 			source.pause();

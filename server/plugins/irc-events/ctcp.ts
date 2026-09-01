@@ -64,7 +64,11 @@ export default <IrcEventHandler>function (irc, network) {
 				}
 
 				const target = data.from_server ? data.hostname : data.nick;
-				const xdcc = data.type === "DCC" ? Xdcc.registerOffer(data.message) : undefined;
+				const isDirectMessage = data.target.toLowerCase() === irc.user.nick.toLowerCase();
+				const xdcc =
+					data.type === "DCC" && isDirectMessage
+						? Xdcc.registerOffer(data.message)
+						: undefined;
 
 				if (xdcc) {
 					const msg = new Msg({

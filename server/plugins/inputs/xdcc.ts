@@ -17,12 +17,18 @@ const input: PluginInputHandler = function (network, chan, _cmd, args) {
 		return;
 	}
 
-	if (args.length !== 2 || !/^#?\d+$/.test(args[1])) {
+	const secure = args[2]?.toLowerCase() === "tls";
+
+	if (
+		(args.length !== 2 && args.length !== 3) ||
+		!/^#?\d+$/.test(args[1]) ||
+		(args[2] && !secure)
+	) {
 		chan.pushMessage(
 			this,
 			new Msg({
 				type: MessageType.ERROR,
-				text: "Usage: /xdcc <bot> <pack number>",
+				text: "Usage: /xdcc <bot> <pack number> [tls]",
 			})
 		);
 		return;
@@ -30,12 +36,13 @@ const input: PluginInputHandler = function (network, chan, _cmd, args) {
 
 	const target = args[0];
 	const pack = args[1].replace(/^#/, "");
-	network.irc.say(target, `XDCC SEND #${pack}`);
+	const command = secure ? "SSEND" : "SEND";
+	network.irc.say(target, `XDCC ${command} #${pack}`);
 	chan.pushMessage(
 		this,
 		new Msg({
 			type: MessageType.NOTE,
-			text: `Requested XDCC pack #${pack} from ${target}.`,
+			text: `Requested ${secure ? "TLS " : ""}XDCC pack #${pack} from ${target}.`,
 		})
 	);
 };
