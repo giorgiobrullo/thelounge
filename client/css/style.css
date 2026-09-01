@@ -2435,6 +2435,10 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 	padding: 14px 0;
 }
 
+.transfer-file-icon {
+	text-align: center;
+}
+
 .transfer-file-icon::before {
 	color: var(--button-color);
 	content: "\f15b"; /* https://fontawesome.com/icons/file?style=solid */
