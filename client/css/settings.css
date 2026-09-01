@@ -226,7 +226,8 @@
 
 /* Card titles, overriding the .window h2 default */
 
-#settings .setting-card-title {
+#settings .setting-card-title,
+#transfers .setting-card-title {
 	font-size: 11px;
 	font-weight: 700;
 	text-transform: uppercase;

@@ -2,106 +2,118 @@
 	<div id="transfers" class="window" role="tabpanel" aria-label="Transfers">
 		<div class="header">
 			<SidebarToggle />
-			<span class="title">Transfers</span>
-			<span class="topic">XDCC downloads</span>
 		</div>
 
 		<div class="container transfers-container">
-			<div v-if="transfers.length" class="transfers-summary">
-				<p>
-					<strong>{{ activeCount }}</strong>
-					{{ activeCount === 1 ? "active transfer" : "active transfers" }}
-					<span aria-hidden="true"> · </span>
-					<strong>{{ transfers.length }}</strong> total
-				</p>
-				<button class="btn btn-sm" :disabled="!hasFinishedTransfers" @click="clearFinished">
-					Clear finished
-				</button>
-			</div>
+			<section class="setting-card transfers-card" aria-labelledby="transfers-title">
+				<h2 id="transfers-title" class="setting-card-title">Transfers</h2>
+				<p class="setting-card-intro">Download and manage files offered by XDCC bots.</p>
 
-			<div v-if="transfers.length === 0" class="transfers-empty">
-				<span class="transfers-empty-icon" aria-hidden="true" />
-				<h1>No file transfers</h1>
-				<p>XDCC offers will appear here when a bot responds to a request.</p>
-			</div>
+				<div v-if="transfers.length" class="transfers-summary" aria-live="polite">
+					<p>
+						<strong>{{ activeCount }}</strong>
+						{{ activeCount === 1 ? "active transfer" : "active transfers" }}
+						<span aria-hidden="true"> · </span>
+						<strong>{{ transfers.length }}</strong> total
+					</p>
+					<button v-if="hasFinishedTransfers" class="btn btn-sm" @click="clearFinished">
+						Clear finished
+					</button>
+				</div>
 
-			<ul v-else class="transfer-list">
-				<li v-for="transfer in transfers" :key="transfer.id" class="transfer-item">
-					<span
-						:class="[
-							'transfer-file-icon',
-							`transfer-file-icon-${fileTypeIcon(transfer.fileName)}`,
-						]"
-						aria-hidden="true"
-					/>
+				<div v-if="transfers.length === 0" class="transfers-empty">
+					<span class="transfers-empty-icon" aria-hidden="true" />
+					<div>
+						<strong>No transfers yet</strong>
+						<p>
+							Request a pack with <code>/xdcc bot pack</code>. Incoming offers will
+							appear here and in chat.
+						</p>
+					</div>
+				</div>
 
-					<div class="transfer-details">
-						<div class="transfer-heading">
-							<strong class="transfer-file-name">{{ transfer.fileName }}</strong>
-						</div>
-
-						<div class="transfer-meta">
-							<span>{{ transfer.sender }}</span>
-							<template v-if="transfer.network">
-								<span aria-hidden="true"> · </span>
-								<span>{{ transfer.network }}</span>
-							</template>
-							<span
-								v-if="transfer.secure"
-								class="transfer-tls"
-								title="Encrypted with TLS"
-							>
-								TLS
-							</span>
-							<span aria-hidden="true"> · </span>
-							<time :datetime="new Date(transfer.offeredAt).toISOString()">
-								{{ formatTime(transfer.offeredAt) }}
-							</time>
-						</div>
-
-						<progress
-							v-if="showProgress(transfer)"
-							class="transfer-progress"
-							:max="transfer.size || 1"
-							:value="progressValue(transfer)"
-							:aria-label="`${transfer.fileName} download progress`"
+				<ul v-else class="transfer-list">
+					<li
+						v-for="transfer in transfers"
+						:key="transfer.id"
+						:class="['transfer-item', `transfer-item-${transfer.status}`]"
+					>
+						<span
+							:class="[
+								'transfer-file-icon',
+								`transfer-file-icon-${fileTypeIcon(transfer.fileName)}`,
+							]"
+							aria-hidden="true"
 						/>
 
-						<div
-							:class="[
-								'transfer-status-detail',
-								{error: transfer.status === 'failed'},
-							]"
-						>
-							{{ statusDetail(transfer) }}
-						</div>
-					</div>
+						<div class="transfer-details">
+							<div class="transfer-heading">
+								<strong class="transfer-file-name">{{ transfer.fileName }}</strong>
+							</div>
 
-					<div class="transfer-actions">
-						<span
-							:class="['transfer-state', `transfer-state-${transfer.status}`]"
-							aria-live="polite"
-						>
-							{{ statusLabel(transfer) }}
-						</span>
-						<a
-							v-if="canDownload(transfer)"
-							class="btn btn-sm"
-							:href="transfer.url"
-							download
-						>
-							{{ transfer.status === "offered" ? "Download" : "Retry" }}
-						</a>
-						<button
-							v-else-if="isActive(transfer)"
-							class="btn btn-sm"
-							@click="cancel(transfer.id)"
-						>
-							Cancel
-						</button>
-					</div>
-				</li>
-			</ul>
+							<div class="transfer-meta">
+								<span>{{ transfer.sender }}</span>
+								<template v-if="transfer.network">
+									<span aria-hidden="true"> · </span>
+									<span>{{ transfer.network }}</span>
+								</template>
+								<span
+									v-if="transfer.secure"
+									class="transfer-tls"
+									title="Encrypted with TLS"
+								>
+									TLS
+								</span>
+								<span aria-hidden="true"> · </span>
+								<time :datetime="new Date(transfer.offeredAt).toISOString()">
+									{{ formatTime(transfer.offeredAt) }}
+								</time>
+							</div>
+
+							<progress
+								v-if="showProgress(transfer)"
+								class="transfer-progress"
+								:max="transfer.size || 1"
+								:value="progressValue(transfer)"
+								:aria-label="`${transfer.fileName} download progress`"
+							/>
+
+							<div
+								:class="[
+									'transfer-status-detail',
+									{error: transfer.status === 'failed'},
+								]"
+							>
+								{{ statusDetail(transfer) }}
+							</div>
+						</div>
+
+						<div class="transfer-actions">
+							<span
+								:class="['transfer-state', `transfer-state-${transfer.status}`]"
+								aria-live="polite"
+							>
+								{{ statusLabel(transfer) }}
+							</span>
+							<a
+								v-if="canDownload(transfer)"
+								class="btn btn-sm"
+								:href="transfer.url"
+								download
+							>
+								{{ transfer.status === "offered" ? "Download" : "Retry" }}
+							</a>
+							<button
+								v-else-if="isActive(transfer)"
+								class="btn btn-sm"
+								@click="cancel(transfer.id)"
+							>
+								Cancel
+							</button>
+						</div>
+					</li>
+				</ul>
+			</section>
 		</div>
 	</div>
 </template>

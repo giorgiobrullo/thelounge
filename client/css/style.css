@@ -520,8 +520,39 @@ p {
 	color: var(--body-color-muted);
 }
 
-#chat .xdcc-download {
+#chat .xdcc-offer-expired .xdcc-file-name {
+	color: var(--body-color-muted);
+	text-decoration: line-through;
+}
+
+#chat .xdcc-download,
+#chat .xdcc-status {
 	margin: 0 0 0 8px;
+}
+
+#chat .xdcc-status {
+	border: 1px solid currentcolor;
+	border-radius: 3px;
+	box-sizing: border-box;
+	color: var(--body-color-muted);
+	display: inline-block;
+	font-size: 12px;
+	line-height: 18px;
+	padding: 4px 8px;
+	text-align: center;
+}
+
+#chat .xdcc-status-completed,
+#chat .xdcc-status-transferring {
+	color: var(--link-color);
+}
+
+#chat .xdcc-status-connecting {
+	color: #f39c12;
+}
+
+#chat .xdcc-status-failed {
+	color: #e74c3c;
 }
 
 #chat .msg[data-type="whois"] .from::before {
@@ -2333,21 +2364,20 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 
 /* XDCC transfer manager */
 
-#transfers .header {
-	border-bottom: 1px solid rgb(127 127 127 / 20%);
-}
-
 .transfers-container {
 	max-width: 100%;
-	padding-top: 24px;
-	width: 760px;
+	width: 680px;
 }
 
 .transfers-summary {
 	align-items: center;
+	border-top: 1px solid color-mix(in srgb, var(--body-color) 6%, var(--window-bg-color));
+	color: var(--body-color-muted);
 	display: flex;
+	font-size: 13px;
 	justify-content: space-between;
-	margin-bottom: 12px;
+	margin: 10px 0 0;
+	padding: 10px 0 0;
 }
 
 .transfers-summary p,
@@ -2356,9 +2386,13 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 }
 
 .transfers-empty {
+	align-items: center;
+	border-top: 1px solid color-mix(in srgb, var(--body-color) 6%, var(--window-bg-color));
 	color: var(--body-color-muted);
-	padding: 72px 20px;
-	text-align: center;
+	display: flex;
+	gap: 14px;
+	margin-top: 10px;
+	padding: 26px 4px 20px;
 }
 
 .transfers-empty-icon::before,
@@ -2370,30 +2404,35 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 
 .transfers-empty-icon::before {
 	content: "\f56d"; /* https://fontawesome.com/icons/file-download?style=solid */
-	font-size: 38px;
+	font-size: 26px;
 }
 
-.transfers-empty h1 {
+.transfers-empty strong {
 	color: var(--window-heading-color);
-	font-size: 20px;
-	margin: 16px 0 6px;
+	display: block;
+	font-size: 14px;
+	font-weight: 500;
+	margin-bottom: 2px;
+}
+
+.transfers-empty p {
+	font-size: 13px;
+	margin: 0;
 }
 
 .transfer-list {
 	list-style: none;
-	margin: 0;
+	margin: 8px 0 0;
 	padding: 0;
 }
 
 .transfer-item {
 	align-items: center;
-	border: 1px solid rgb(127 127 127 / 20%);
-	border-radius: 3px;
+	border-top: 1px solid color-mix(in srgb, var(--body-color) 6%, var(--window-bg-color));
 	display: grid;
 	gap: 12px;
 	grid-template-columns: 30px minmax(0, 1fr) auto;
-	margin-bottom: 10px;
-	padding: 14px;
+	padding: 14px 0;
 }
 
 .transfer-file-icon::before {
@@ -2453,6 +2492,11 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.transfer-item-expired .transfer-file-name {
+	color: var(--body-color-muted);
+	text-decoration: line-through;
 }
 
 .transfer-state {
@@ -2541,19 +2585,10 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 }
 
 @media (max-width: 600px) {
-	.transfers-container {
-		padding-top: 14px;
-	}
-
-	.transfers-summary {
-		align-items: flex-start;
-		gap: 10px;
-	}
-
 	.transfer-item {
 		align-items: start;
 		grid-template-columns: 24px minmax(0, 1fr);
-		padding: 12px;
+		padding: 12px 0;
 	}
 
 	.transfer-file-icon::before {
