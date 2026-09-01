@@ -67,7 +67,12 @@ export default <IrcEventHandler>function (irc, network) {
 				const isDirectMessage = data.target.toLowerCase() === irc.user.nick.toLowerCase();
 				const xdcc =
 					data.type === "DCC" && isDirectMessage
-						? Xdcc.registerOffer(data.message)
+						? Xdcc.registerOffer(data.message, {
+								id: client.id,
+								sender: target,
+								network: network.name,
+								notify: (update) => client.emit("xdcc:update", update),
+						  })
 						: undefined;
 
 				if (xdcc) {

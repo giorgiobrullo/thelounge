@@ -29,6 +29,17 @@ socket.on("msg", function (data) {
 	let isActiveChannel =
 		store.state.activeChannel && store.state.activeChannel.channel === channel;
 
+	if (data.msg.xdcc) {
+		store.commit("addXdccTransfer", {
+			...data.msg.xdcc,
+			sender: data.msg.from?.nick || "Unknown sender",
+			network: receivingChannel.network.name,
+			status: "offered",
+			received: 0,
+			speed: 0,
+		});
+	}
+
 	// Display received notices and errors in currently active channel.
 	// Reloading the page will put them back into the lobby window.
 	if (data.msg.showInActive) {

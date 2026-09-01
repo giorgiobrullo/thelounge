@@ -7,6 +7,7 @@ import {md, pki} from "node-forge";
 
 import Config from "../../server/config";
 import Xdcc, {isBlockedAddress, parseDccSend} from "../../server/plugins/xdcc";
+import type {XdccTransferUpdate} from "../../shared/types/msg";
 
 describe("XDCC", function () {
 	const originalConfig = {...Config.values.xdcc};
@@ -178,6 +179,11 @@ describe("XDCC", function () {
 		Config.values.xdcc.enable = true;
 		Config.values.xdcc.allowPrivateAddresses = true;
 		const payload = Buffer.from("hello XDCC");
+		const updates: XdccTransferUpdate[] = [];
+		let resolveCompleted!: () => void;
+		const completed = new Promise<void>((resolve) => {
+			resolveCompleted = resolve;
+		});
 		let resolveAcknowledgement!: (value: number) => void;
 		const acknowledgement = new Promise<number>((resolve) => {
 			resolveAcknowledgement = resolve;
@@ -198,12 +204,35 @@ describe("XDCC", function () {
 		}
 
 		const registration = Xdcc.registerOffer(
-			`DCC SEND test.bin 2130706433 ${dccAddress.port} ${payload.length}`
+			`DCC SEND test.bin 2130706433 ${dccAddress.port} ${payload.length}`,
+			{
+				id: "owner-1",
+				sender: "SomeBot",
+				network: "Libera.Chat",
+				notify(update) {
+					updates.push({...update});
+
+					if (update.status === "completed") {
+						resolveCompleted();
+					}
+				},
+			}
 		);
 
 		if (!registration?.offer) {
 			throw new Error(registration?.error || "DCC offer was not registered");
 		}
+
+		expect(Xdcc.getTransfers("owner-1")).to.deep.include({
+			...registration.offer,
+			sender: "SomeBot",
+			network: "Libera.Chat",
+			status: "offered",
+			received: 0,
+			speed: 0,
+			error: undefined,
+		});
+		expect(Xdcc.getTransfers("another-owner")).to.deep.equal([]);
 
 		const app = express();
 		Xdcc.router(app);
@@ -225,6 +254,100 @@ describe("XDCC", function () {
 			expect(response.headers.get("content-disposition")).to.contain("test.bin");
 			expect(body).to.deep.equal(payload);
 			expect(await acknowledgement).to.equal(payload.length);
+			await completed;
+			expect(updates.map((update) => update.status)).to.deep.equal([
+				"connecting",
+				"transferring",
+				"transferring",
+				"completed",
+			]);
+			expect(Xdcc.getTransfers("owner-1")).to.deep.equal([]);
+		} finally {
+			await Promise.all([
+				new Promise<void>((resolve) => dccServer.close(() => resolve())),
+				new Promise<void>((resolve) => webServer.close(() => resolve())),
+			]);
+		}
+	});
+
+	it("cancels owner-scoped transfers and allows retry before expiry", async function () {
+		Config.values.xdcc.enable = true;
+		Config.values.xdcc.allowPrivateAddresses = true;
+		const payload = Buffer.from("retry worked");
+		const updates: XdccTransferUpdate[] = [];
+		let resolveCompleted!: () => void;
+		const completed = new Promise<void>((resolve) => {
+			resolveCompleted = resolve;
+		});
+		let connectionCount = 0;
+		const dccServer = net.createServer((socket) => {
+			connectionCount++;
+
+			if (connectionCount === 1) {
+				return;
+			}
+
+			socket.write(payload);
+			socket.once("data", () => socket.end());
+		});
+
+		await new Promise<void>((resolve) => dccServer.listen(0, "127.0.0.1", resolve));
+		const dccAddress = dccServer.address();
+
+		if (!dccAddress || typeof dccAddress === "string") {
+			throw new Error("DCC retry test server did not bind to a TCP port");
+		}
+
+		const registration = Xdcc.registerOffer(
+			`DCC SEND retry.bin 2130706433 ${dccAddress.port} ${payload.length}`,
+			{
+				id: "owner-2",
+				sender: "SomeBot",
+				network: "Libera.Chat",
+				notify(update) {
+					updates.push({...update});
+
+					if (update.status === "completed") {
+						resolveCompleted();
+					}
+				},
+			}
+		);
+
+		if (!registration?.offer) {
+			throw new Error(registration?.error || "DCC retry offer was not registered");
+		}
+
+		const app = express();
+		Xdcc.router(app);
+		const webServer = http.createServer(app);
+		await new Promise<void>((resolve) => webServer.listen(0, "127.0.0.1", resolve));
+		const webAddress = webServer.address();
+
+		if (!webAddress || typeof webAddress === "string") {
+			throw new Error("XDCC retry web server did not bind to a TCP port");
+		}
+
+		const url = `http://127.0.0.1:${webAddress.port}/${registration.offer.url}`;
+
+		try {
+			const firstResponse = await fetch(url);
+			const cancelledBody = firstResponse.arrayBuffer().catch(() => undefined);
+
+			expect(Xdcc.cancelTransfer(registration.offer.id, "another-owner")).to.equal(false);
+			expect(Xdcc.cancelTransfer(registration.offer.id, "owner-2")).to.equal(true);
+			await cancelledBody;
+			expect(Xdcc.getTransfers("owner-2")[0].status).to.equal("cancelled");
+
+			const retryResponse = await fetch(url);
+			const retryBody = Buffer.from(await retryResponse.arrayBuffer());
+			await completed;
+
+			expect(retryResponse.status).to.equal(200);
+			expect(retryBody).to.deep.equal(payload);
+			expect(updates.some((update) => update.status === "cancelled")).to.equal(true);
+			expect(updates.at(-1)?.status).to.equal("completed");
+			expect(Xdcc.getTransfers("owner-2")).to.deep.equal([]);
 		} finally {
 			await Promise.all([
 				new Promise<void>((resolve) => dccServer.close(() => resolve())),

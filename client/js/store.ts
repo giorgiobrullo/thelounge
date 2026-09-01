@@ -9,6 +9,7 @@ import type {InjectionKey} from "vue";
 import {SettingsState} from "./settings";
 import {SearchQuery} from "../../shared/types/storage";
 import {SharedConfiguration, LockedSharedConfiguration} from "../../shared/types/config";
+import {XdccTransfer, XdccTransferUpdate} from "../../shared/types/msg";
 
 const appName = document.title;
 
@@ -78,6 +79,7 @@ export type State = {
 	} | null;
 	messageSearchPendingQuery: SearchQuery | null;
 	searchEnabled: boolean;
+	xdccTransfers: XdccTransfer[];
 };
 
 const state = (): State => ({
@@ -103,6 +105,7 @@ const state = (): State => ({
 	messageSearchResults: null,
 	messageSearchPendingQuery: null,
 	searchEnabled: false,
+	xdccTransfers: [],
 });
 
 type Getters = {
@@ -227,6 +230,10 @@ type Mutations = {
 	messageSearchPendingQuery(state: State, value: State["messageSearchPendingQuery"]): void;
 	messageSearchResults(state: State, value: State["messageSearchResults"]): void;
 	addMessageSearchResults(state: State, value: NonNullable<State["messageSearchResults"]>): void;
+	setXdccTransfers(state: State, transfers: XdccTransfer[]): void;
+	addXdccTransfer(state: State, transfer: XdccTransfer): void;
+	updateXdccTransfer(state: State, update: XdccTransferUpdate): void;
+	clearFinishedXdccTransfers(state: State): void;
 };
 
 const mutations: Mutations = {
@@ -323,6 +330,26 @@ const mutations: Mutations = {
 		state.messageSearchResults = {
 			results,
 		};
+	},
+	setXdccTransfers(state, transfers) {
+		state.xdccTransfers = transfers;
+	},
+	addXdccTransfer(state, transfer) {
+		if (!state.xdccTransfers.some((item) => item.id === transfer.id)) {
+			state.xdccTransfers.unshift(transfer);
+		}
+	},
+	updateXdccTransfer(state, update) {
+		const transfer = state.xdccTransfers.find((item) => item.id === update.id);
+
+		if (transfer) {
+			Object.assign(transfer, update);
+		}
+	},
+	clearFinishedXdccTransfers(state) {
+		state.xdccTransfers = state.xdccTransfers.filter((transfer) =>
+			["offered", "connecting", "transferring"].includes(transfer.status)
+		);
 	},
 };
 

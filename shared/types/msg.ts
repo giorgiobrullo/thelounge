@@ -56,12 +56,37 @@ export type LinkPreview = {
 };
 
 export type XdccFile = {
+	id: string;
 	fileName: string;
 	size?: number;
 	url: string;
+	offeredAt: number;
 	expiresAt: number;
 	secure: boolean;
 };
+
+export type XdccTransferStatus =
+	| "offered"
+	| "connecting"
+	| "transferring"
+	| "completed"
+	| "failed"
+	| "cancelled"
+	| "expired";
+
+export type XdccTransfer = XdccFile & {
+	sender: string;
+	network: string;
+	status: XdccTransferStatus;
+	received: number;
+	speed: number;
+	error?: string;
+};
+
+export type XdccTransferUpdate = Pick<
+	XdccTransfer,
+	"id" | "status" | "received" | "speed" | "error"
+>;
 
 export type SharedMsg = {
 	from?: UserInMessage;

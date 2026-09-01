@@ -12,14 +12,8 @@
 					<template v-if="store.state.serverConfiguration?.gitCommit">
 						<code>{{ store.state.serverConfiguration?.gitCommit }}</code>
 					</template>
-					<template v-else>
-						v{{ store.state.serverConfiguration?.version }}
-					</template>
-					(<router-link
-						id="view-changelog"
-						to="/changelog"
-						>commit info</router-link
-					>)
+					<template v-else> v{{ store.state.serverConfiguration?.version }} </template>
+					(<router-link id="view-changelog" to="/changelog">commit info</router-link>)
 				</small>
 			</h2>
 
@@ -28,20 +22,14 @@
 
 				<p>
 					This is a custom build maintained by
-					<a
-						href="https://github.com/giorgiobrullo"
-						target="_blank"
-						rel="noopener"
+					<a href="https://github.com/giorgiobrullo" target="_blank" rel="noopener"
 						>giorgiobrullo</a
 					>, forked from
-					<a
-						href="https://github.com/thelounge/thelounge"
-						target="_blank"
-						rel="noopener"
+					<a href="https://github.com/thelounge/thelounge" target="_blank" rel="noopener"
 						>The Lounge</a
-					>. It tracks upstream master with up-to-date dependencies and
-					Docker images, occasional cherry-picked PRs, and build fixes.
-					All credit goes to the original The Lounge team.
+					>. It tracks upstream master with up-to-date dependencies and Docker images,
+					occasional cherry-picked PRs, and build fixes. All credit goes to the original
+					The Lounge team.
 				</p>
 
 				<template v-if="store.state.serverConfiguration?.gitCommit">
@@ -862,9 +850,9 @@
 				</div>
 				<div class="description">
 					<p>
-						Request a pack from an XDCC bot. Add <code>tls</code> to request an encrypted
-						DCC transfer. When the bot offers the file, use the download button in the
-						chat to stream it through The Lounge.
+						Request a pack from an XDCC bot. Add <code>tls</code> to request an
+						encrypted DCC transfer. Download offers from the chat or the Transfers
+						window, where you can track progress, cancel, or retry.
 					</p>
 				</div>
 			</div>

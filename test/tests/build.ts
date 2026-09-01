@@ -62,5 +62,6 @@ describe("public folder", function () {
 		const contents = fs.readFileSync(path.join(publicFolder, "service-worker.js"), "utf8");
 		expect(contents.includes("const cacheName")).to.be.true;
 		expect(contents.includes("__HASH__")).to.be.false;
+		expect(contents.includes("storage|uploads|xdcc|cdn-cgi")).to.be.true;
 	});
 });

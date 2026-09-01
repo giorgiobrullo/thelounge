@@ -6,7 +6,12 @@ import net from "net";
 import tls from "tls";
 
 import Config from "../config";
-import type {XdccFile} from "../../shared/types/msg";
+import type {
+	XdccFile,
+	XdccTransfer,
+	XdccTransferStatus,
+	XdccTransferUpdate,
+} from "../../shared/types/msg";
 
 type DccSend = {
 	fileName: string;
@@ -17,9 +22,29 @@ type DccSend = {
 	turbo: boolean;
 };
 
+type XdccOfferOwner = {
+	id: string;
+	sender: string;
+	network: string;
+	notify: (update: XdccTransferUpdate) => void;
+};
+
 type StoredOffer = DccSend & {
+	id: string;
+	url: string;
+	offeredAt: number;
 	expiresAt: number;
-	timeout: ReturnType<typeof setTimeout>;
+	timeout?: ReturnType<typeof setTimeout>;
+	ownerId?: string;
+	sender: string;
+	network: string;
+	status: XdccTransferStatus;
+	received: number;
+	speed: number;
+	error?: string;
+	active: boolean;
+	notify?: XdccOfferOwner["notify"];
+	cancel?: () => void;
 };
 
 export type XdccRegistration = {offer: XdccFile; error?: never} | {offer?: never; error: string};
@@ -170,7 +195,82 @@ function getMaxFileSize(): number {
 	return configuredSize < 0 ? Infinity : configuredSize * 1024;
 }
 
-function registerOffer(message: string): XdccRegistration | undefined {
+function toXdccFile(offer: StoredOffer): XdccFile {
+	return {
+		id: offer.id,
+		fileName: offer.fileName,
+		size: offer.size,
+		url: offer.url,
+		offeredAt: offer.offeredAt,
+		expiresAt: offer.expiresAt,
+		secure: offer.secure,
+	};
+}
+
+function toXdccTransfer(offer: StoredOffer): XdccTransfer {
+	return {
+		...toXdccFile(offer),
+		sender: offer.sender,
+		network: offer.network,
+		status: offer.status,
+		received: offer.received,
+		speed: offer.speed,
+		error: offer.error,
+	};
+}
+
+function updateTransfer(offer: StoredOffer, status: XdccTransferStatus, error?: string): void {
+	offer.status = status;
+	offer.error = error;
+	offer.notify?.({
+		id: offer.id,
+		status,
+		received: offer.received,
+		speed: offer.speed,
+		error,
+	});
+}
+
+function expireOffer(offer: StoredOffer): void {
+	if (offer.active) {
+		return;
+	}
+
+	if (offer.timeout) {
+		clearTimeout(offer.timeout);
+	}
+
+	offers.delete(offer.id);
+	offer.timeout = undefined;
+	updateTransfer(offer, "expired");
+}
+
+function scheduleExpiry(offer: StoredOffer): void {
+	if (offer.timeout) {
+		clearTimeout(offer.timeout);
+	}
+
+	const remaining = offer.expiresAt - Date.now();
+
+	if (remaining <= 0) {
+		expireOffer(offer);
+		return;
+	}
+
+	offer.timeout = setTimeout(() => expireOffer(offer), remaining);
+	offer.timeout.unref();
+}
+
+function removeOffer(offer: StoredOffer): void {
+	if (offer.timeout) {
+		clearTimeout(offer.timeout);
+	}
+
+	offer.timeout = undefined;
+	offers.delete(offer.id);
+}
+
+function registerOffer(message: string, owner?: XdccOfferOwner): XdccRegistration | undefined {
 	if (!/^DCC\s+(?:SEND|TSEND|SSEND|TSSEND|STSEND)\b/i.test(message)) {
 		return undefined;
 	}
@@ -203,38 +303,71 @@ function registerOffer(message: string): XdccRegistration | undefined {
 		return {error: "The offered XDCC file exceeds the configured size limit."};
 	}
 
-	const token = crypto.randomUUID();
-	const expiresAt = Date.now() + Config.values.xdcc.offerTimeout;
-	const timeout = setTimeout(() => offers.delete(token), Config.values.xdcc.offerTimeout);
-	timeout.unref();
-	offers.set(token, {...parsed, expiresAt, timeout});
+	const id = crypto.randomUUID();
+	const offeredAt = Date.now();
+	const offer: StoredOffer = {
+		...parsed,
+		id,
+		url: `xdcc/${id}/${encodeURIComponent(parsed.fileName)}`,
+		offeredAt,
+		expiresAt: offeredAt + Config.values.xdcc.offerTimeout,
+		ownerId: owner?.id,
+		sender: owner?.sender || "Unknown sender",
+		network: owner?.network || "",
+		status: "offered",
+		received: 0,
+		speed: 0,
+		active: false,
+		notify: owner?.notify,
+	};
+	offers.set(id, offer);
+	scheduleExpiry(offer);
 
 	return {
-		offer: {
-			fileName: parsed.fileName,
-			size: parsed.size,
-			url: `xdcc/${token}/${encodeURIComponent(parsed.fileName)}`,
-			expiresAt,
-			secure: parsed.secure,
-		},
+		offer: toXdccFile(offer),
 	};
 }
 
-function claimOffer(token: string): StoredOffer | undefined {
-	const offer = offers.get(token);
+function getOffer(id: string): StoredOffer | undefined {
+	const offer = offers.get(id);
 
 	if (!offer || offer.expiresAt <= Date.now()) {
 		if (offer) {
-			clearTimeout(offer.timeout);
-			offers.delete(token);
+			expireOffer(offer);
 		}
 
 		return undefined;
 	}
 
-	clearTimeout(offer.timeout);
-	offers.delete(token);
 	return offer;
+}
+
+function getTransfers(ownerId: string): XdccTransfer[] {
+	const transfers: XdccTransfer[] = [];
+
+	for (const offer of offers.values()) {
+		if (!offer.active && offer.expiresAt <= Date.now()) {
+			expireOffer(offer);
+			continue;
+		}
+
+		if (offer.ownerId === ownerId) {
+			transfers.push(toXdccTransfer(offer));
+		}
+	}
+
+	return transfers.sort((a, b) => b.offeredAt - a.offeredAt);
+}
+
+function cancelTransfer(id: string, ownerId: string): boolean {
+	const offer = offers.get(id);
+
+	if (!offer?.active || offer.ownerId !== ownerId || !offer.cancel) {
+		return false;
+	}
+
+	offer.cancel();
+	return true;
 }
 
 function routeDownload(req: Request, res: Response): Response | void {
@@ -246,14 +379,18 @@ function routeDownload(req: Request, res: Response): Response | void {
 		return res.status(404).send("Not found");
 	}
 
-	if (activeDownloads >= Config.values.xdcc.maxConcurrentDownloads) {
-		return res.status(429).send("Too many XDCC downloads are already active");
-	}
-
-	const offer = claimOffer(req.params.token);
+	const offer = getOffer(req.params.token);
 
 	if (!offer) {
 		return res.status(404).send("This XDCC offer is invalid or has expired");
+	}
+
+	if (offer.active) {
+		return res.status(409).send("This XDCC offer is already being downloaded");
+	}
+
+	if (activeDownloads >= Config.values.xdcc.maxConcurrentDownloads) {
+		return res.status(429).send("Too many XDCC downloads are already active");
 	}
 
 	if (isBlockedAddress(offer.address, Config.values.xdcc.allowPrivateAddresses)) {
@@ -264,10 +401,11 @@ function routeDownload(req: Request, res: Response): Response | void {
 		return res.status(403).send("This XDCC port is not allowed");
 	}
 
-	activeDownloads++;
 	let received = 0;
 	let finished = false;
 	let upstreamEnded = false;
+	let lastProgressAt = 0;
+	const startedAt = Date.now();
 	const maxFileSize = getMaxFileSize();
 	const connectionOptions = {
 		host: offer.address,
@@ -278,14 +416,41 @@ function routeDownload(req: Request, res: Response): Response | void {
 		? tls.connect({...connectionOptions, rejectUnauthorized: false})
 		: net.createConnection(connectionOptions);
 
-	const cleanup = () => {
+	activeDownloads++;
+	offer.active = true;
+
+	if (offer.timeout) {
+		clearTimeout(offer.timeout);
+		offer.timeout = undefined;
+	}
+
+	const updateSpeed = () => {
+		const elapsed = Date.now() - startedAt;
+		offer.received = received;
+		offer.speed = elapsed > 0 ? Math.round((received * 1000) / elapsed) : 0;
+	};
+
+	const finishTransfer = (
+		status: Extract<XdccTransferStatus, "completed" | "failed" | "cancelled">,
+		error?: string
+	) => {
 		if (finished) {
 			return;
 		}
 
 		finished = true;
 		activeDownloads--;
+		offer.active = false;
+		offer.cancel = undefined;
+		updateSpeed();
+		updateTransfer(offer, status, error);
 		source.destroy();
+
+		if (status === "completed") {
+			removeOffer(offer);
+		} else {
+			scheduleExpiry(offer);
+		}
 	};
 
 	const fail = (status: number, message: string) => {
@@ -299,8 +464,22 @@ function routeDownload(req: Request, res: Response): Response | void {
 			res.destroy(Error(message));
 		}
 
-		cleanup();
+		finishTransfer("failed", message);
 	};
+
+	offer.cancel = () => {
+		const message = "The XDCC download was cancelled.";
+
+		if (!res.headersSent) {
+			res.status(409).send(message);
+		} else {
+			res.destroy();
+		}
+
+		finishTransfer("cancelled", message);
+	};
+
+	updateTransfer(offer, "connecting");
 
 	source.setNoDelay(true);
 	source.setTimeout(Config.values.xdcc.timeout);
@@ -327,6 +506,8 @@ function routeDownload(req: Request, res: Response): Response | void {
 		if (!validateConnectedAddress()) {
 			return;
 		}
+
+		updateTransfer(offer, "transferring");
 
 		res.setHeader(
 			"Content-Disposition",
@@ -362,6 +543,14 @@ function routeDownload(req: Request, res: Response): Response | void {
 			source.pause();
 			res.once("drain", () => source.resume());
 		}
+
+		const now = Date.now();
+
+		if (now - lastProgressAt >= 500 || received === offer.size) {
+			lastProgressAt = now;
+			updateSpeed();
+			updateTransfer(offer, "transferring");
+		}
 	});
 
 	source.once("end", () => {
@@ -373,7 +562,7 @@ function routeDownload(req: Request, res: Response): Response | void {
 		}
 
 		res.end();
-		cleanup();
+		finishTransfer("completed");
 	});
 
 	source.once("timeout", () => fail(504, "The XDCC sender timed out"));
@@ -385,13 +574,15 @@ function routeDownload(req: Request, res: Response): Response | void {
 	});
 
 	res.once("close", () => {
-		if (!res.writableEnded) {
-			cleanup();
+		if (!finished && !res.writableEnded) {
+			finishTransfer("cancelled", "The browser stopped the XDCC download.");
 		}
 	});
 }
 
 export default {
+	cancelTransfer,
+	getTransfers,
 	registerOffer,
 	router(app: Application) {
 		app.get("/xdcc/:token/:slug?", routeDownload);

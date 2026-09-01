@@ -454,6 +454,12 @@ function initializeClient(
 		new Uploader(socket);
 	}
 
+	socket.on("xdcc:cancel", (data) => {
+		if (_.isPlainObject(data) && typeof data.id === "string") {
+			Xdcc.cancelTransfer(data.id, client.id);
+		}
+	});
+
 	socket.on("disconnect", function () {
 		process.nextTick(() => client.clientDetach(socket.id));
 	});
@@ -877,6 +883,7 @@ function initializeClient(
 			token: tokenToSend,
 		});
 		socket.emit("commands", inputs.getCommands());
+		socket.emit("xdcc:list", Xdcc.getTransfers(client.id));
 	};
 
 	if (Config.values.public) {
@@ -898,6 +905,7 @@ function initializeClient(
 function getClientConfiguration(): SharedConfiguration | LockedSharedConfiguration {
 	const common = {
 		fileUpload: Config.values.fileUpload.enable,
+		xdcc: Config.values.xdcc.enable,
 		ldapEnabled: Config.values.ldap.enable,
 		isUpdateAvailable: changelog.isUpdateAvailable,
 		applicationServerKey: manager!.webPush.vapidKeys!.publicKey,

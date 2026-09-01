@@ -3,7 +3,7 @@ name: Monthly Update
 
 on:
   schedule:
-    - cron: '0 0 1 * *'  # 1st of each month
+    - cron: "0 0 1 * *" # 1st of each month
   workflow_dispatch:
 
 jobs:
