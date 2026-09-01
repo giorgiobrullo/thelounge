@@ -202,6 +202,30 @@ module.exports = {
 		baseUrl: null,
 	},
 
+	// ### `xdcc`
+	//
+	// Allow receiving files offered by XDCC bots. Downloads only start after a
+	// user clicks the download button and are streamed through The Lounge without
+	// being stored on its filesystem. Plain DCC is not encrypted and exposes the
+	// address of the server running The Lounge to the sender.
+	//
+	// - `enable`: Show download controls for valid DCC SEND offers.
+	// - `allowPrivateAddresses`: Allow connections to private and reserved IP
+	//   ranges. Keep this disabled unless you use XDCC on a trusted local network.
+	// - `maxFileSize`: Maximum advertised or received size in kilobytes. Set to
+	//   `-1` to allow files of any size. The default is 10 GiB.
+	// - `maxConcurrentDownloads`: Maximum number of active XDCC downloads.
+	// - `offerTimeout`: Time in milliseconds before an unused offer expires.
+	// - `timeout`: TCP inactivity timeout in milliseconds for a download.
+	xdcc: {
+		enable: true,
+		allowPrivateAddresses: false,
+		maxFileSize: 10485760,
+		maxConcurrentDownloads: 3,
+		offerTimeout: 300000,
+		timeout: 30000,
+	},
+
 	// ### `transports`
 	//
 	// Set `socket.io` transports.

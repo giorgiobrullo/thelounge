@@ -330,6 +330,7 @@ p {
 #chat .msg[data-command="info"] .from::before,
 #chat .msg[data-type="ctcp"] .from::before,
 #chat .msg[data-type="ctcp_request"] .from::before,
+#chat .msg[data-type="xdcc"] .from::before,
 #chat .msg[data-type="whois"] .from::before,
 #chat .msg[data-type="nick"] .from::before,
 #chat .msg[data-type="chghost"] .from::before,
@@ -497,6 +498,23 @@ p {
 #chat .msg[data-type="ctcp_request"] .from::before {
 	content: "\f15c"; /* https://fontawesome.com/icons/file-alt?style=solid */
 	color: var(--body-color-muted);
+}
+
+#chat .msg[data-type="xdcc"] .from::before {
+	content: "\f56d"; /* https://fontawesome.com/icons/file-download?style=solid */
+	color: var(--button-color);
+}
+
+#chat .xdcc-file-name {
+	overflow-wrap: anywhere;
+}
+
+#chat .xdcc-file-size {
+	color: var(--body-color-muted);
+}
+
+#chat .xdcc-download {
+	margin: 0 0 0 8px;
 }
 
 #chat .msg[data-type="whois"] .from::before {

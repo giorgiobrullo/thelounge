@@ -83,6 +83,15 @@ type StoragePolicy = {
 	deletionPolicy: "statusOnly" | "everything";
 };
 
+type XdccConfig = {
+	enable: boolean;
+	allowPrivateAddresses: boolean;
+	maxFileSize: number;
+	maxConcurrentDownloads: number;
+	offerTimeout: number;
+	timeout: number;
+};
+
 export type ConfigType = {
 	public: boolean;
 	host: string | undefined;
@@ -99,6 +108,7 @@ export type ConfigType = {
 	prefetchMaxSearchSize: number;
 	prefetchTimeout: number;
 	fileUpload: FileUpload;
+	xdcc: XdccConfig;
 	transports: string[];
 	leaveMessage: string;
 	defaults: Defaults;

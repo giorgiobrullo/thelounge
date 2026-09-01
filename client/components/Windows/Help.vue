@@ -855,6 +855,18 @@
 					<p>Retrieve information about the given user on the current network.</p>
 				</div>
 			</div>
+
+			<div class="help-item">
+				<div class="subject">
+					<code>/xdcc bot pack</code>
+				</div>
+				<div class="description">
+					<p>
+						Request a pack from an XDCC bot. When the bot offers the file, use the
+						download button in the chat to stream it through The Lounge.
+					</p>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>

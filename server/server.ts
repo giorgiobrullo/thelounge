@@ -12,6 +12,7 @@ import log from "./log";
 import Client from "./client";
 import ClientManager from "./clientManager";
 import Uploader from "./plugins/uploader";
+import Xdcc from "./plugins/xdcc";
 import Helper from "./helper";
 import Config from "./config";
 import Identification from "./identification";
@@ -99,6 +100,8 @@ export default async function (
 	if (Config.values.fileUpload.enable) {
 		Uploader.router(app);
 	}
+
+	Xdcc.router(app);
 
 	// This route serves *installed themes only*. Local themes are served directly
 	// from the `public/themes/` folder as static assets, without entering this
