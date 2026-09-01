@@ -508,6 +508,10 @@ p {
 	color: var(--button-color);
 }
 
+#chat .msg[data-type="xdcc"] .from {
+	align-self: center;
+}
+
 #chat .xdcc-file-name {
 	overflow-wrap: anywhere;
 }
@@ -3274,6 +3278,21 @@ part/quit messages where we don't load previews (adds a blank line otherwise) */
 		border: 0;
 		display: inline;
 		padding: 0;
+	}
+
+	#chat .msg[data-type="xdcc"] {
+		display: flex;
+	}
+
+	#chat .msg[data-type="xdcc"] .time,
+	#chat .msg[data-type="xdcc"] .from,
+	#chat .msg[data-type="xdcc"] .content {
+		display: block;
+		width: auto;
+	}
+
+	#chat .msg[data-type="xdcc"] .content {
+		flex: 1 1 auto;
 	}
 
 	#chat .from::after {
