@@ -1,4 +1,3 @@
-// @ts-expect-error -- vite uses "exports" which requires moduleResolution: "bundler"
 import {createServer as createViteServer} from "vite";
 import express from "express";
 import fs from "fs";
